@@ -1,0 +1,19 @@
+name: tarva
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+  - biobakery
+  - rmg
+  - anaconda
+  - r
+  - nodefaults
+dependencies:
+  - pyvcf
+  - sqlite
+  - scipy
+  - biopython
+  - pandas
+  - statsmodels
+  - anaconda::scikit-learn
+  - bioconda::hgvs
