@@ -7,7 +7,7 @@ output:
     toc: true
     toc_depth: 3
     number_sections: false
-    preserve_yaml: true
+    preserve_yaml: false
 ---
 
 ```{r setup, include=FALSE}

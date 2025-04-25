@@ -1,15 +1,3 @@
----
-title: "README"
-author: "kat j"
-date: "2025-04-25"
-output: 
-  github_document:
-    toc: true
-    toc_depth: 3
-    number_sections: false
-    preserve_yaml: true
----
-
 README
 ================
 kat j
