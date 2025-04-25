@@ -10,8 +10,6 @@ kat j
   - [Tools, Environments and
     Dependencies](#tools-environments-and-dependencies)
   - [Workflow Overview](#workflow-overview)
-  - [Limitations and Considerations](#limitations-and-considerations)
-  - [Acknowledgments](#acknowledgments)
   - [License](#license)
 
 # **T**ranscript **A**nalysis of **R**NA **Va**riants (TARVa)
@@ -151,10 +149,11 @@ changes](TARVaCreation/DownStreamDBCleanup/), [analysis set
 ## Workflow Overview
 
 To implement the full TARVa workflow, the **data pre-processing
-pipelines** ([gatk_rna](GatkRnaSeqPipe/)
+pipelines** ( [stringtie](StringtiePipe/)
+([README](StringtiePipe/README_Stringtie.md)),
+[gatk_rna](GatkRnaSeqPipe/)
 ([README](GatkRnaSeqPipe/README_gatkRNA.md)), [gatk_wgs](GatkWGSeqPipe/)
-([README](GatkWGSeqPipe/README_gatkWGS.md)), [stringtie](StringtiePipe/)
-([README](StringtiePipe/README_Stringtie.md))) are run first.  
+([README](GatkWGSeqPipe/README_gatkWGS.md))) are run first.  
 Output from each pipeline can then be used as input for the **TARVa
 analysis pipeline** ([analysis set 1](TARVaCreation/OriginalBuild/)
 ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md)),
@@ -162,9 +161,5 @@ analysis pipeline** ([analysis set 1](TARVaCreation/OriginalBuild/)
 ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md)),
 [analysis set 2](TARVaCreation/SecondSetBuild/)
 ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))).
-
-## Limitations and Considerations
-
-## Acknowledgments
 
 ## License

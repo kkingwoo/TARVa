@@ -62,13 +62,10 @@ For the __TARVa analysis pipelines__ ([analysis set 1](TARVaCreation/OriginalBui
     -- *vcf*                                               
                           
 ## Workflow Overview                                                                                                             
-To implement the full TARVa workflow, the __data pre-processing pipelines__ ([gatk_rna](GatkRnaSeqPipe/) ([README](GatkRnaSeqPipe/README_gatkRNA.md)), [gatk_wgs](GatkWGSeqPipe/) ([README](GatkWGSeqPipe/README_gatkWGS.md)), [stringtie](StringtiePipe/) ([README](StringtiePipe/README_Stringtie.md))) are run first.                               
-Output from each pipeline can then be used as input for the __TARVa analysis pipeline__ ([analysis set 1](TARVaCreation/OriginalBuild/) ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md)), [analysis set 1: checks and changes](TARVaCreation/DownStreamDBCleanup/) ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md)), [analysis set 2](TARVaCreation/SecondSetBuild/) ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))).                                              
+To implement the full TARVa workflow, the __data pre-processing pipelines__  ( [stringtie](StringtiePipe/) ([README](StringtiePipe/README_Stringtie.md)),  [gatk_rna](GatkRnaSeqPipe/) ([README](GatkRnaSeqPipe/README_gatkRNA.md)), [gatk_wgs](GatkWGSeqPipe/) ([README](GatkWGSeqPipe/README_gatkWGS.md))) are run first.                               
+Output from each pipeline can then be used as input for the __TARVa analysis pipeline__ ([analysis set 1](TARVaCreation/OriginalBuild/) ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md)), [analysis set 1: checks and changes](TARVaCreation/DownStreamDBCleanup/) ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md)), [analysis set 2](TARVaCreation/SecondSetBuild/) ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))).                                                        
 
 
-## Limitations and Considerations                                                       
-
-## Acknowledgments                                 
 ## License                                    
 
 
