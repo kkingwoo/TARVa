@@ -17,6 +17,15 @@ kat j
 
 ## Project Overview
 
+[**TARVa**](#transcript-analysis-of-rna-variants-tarva) is a tool which
+enables analysis of epitranscriptomic modifications. Starting with a
+global overview, the pipeline moves through non-hierarchical
+stratifications of the data, ending with local, per-position comparisons
+across tissue types and conditions. The workflow is set up for use with
+paired RNAseq and WGS raw sequencing datasets (fastq) from more than one
+condition and/or tissue, and covers three data-precossing pipelines as
+well as the main TARVa pipeline .
+
 ## Getting Started
 
 ## Environments and Dependencies
