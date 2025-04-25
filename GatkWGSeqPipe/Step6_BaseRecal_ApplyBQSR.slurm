@@ -2,13 +2,13 @@
 ########### Script Settings ####### Katie Jensen #
 #################################################
 #SBATCH --job-name=wgs_mub
-#SBATCH --partition=Orion
+#SBATCH --partition=
 #SBATCH --nodes=1
 #SBATCH --time=12:00:00
 #SBATCH --error=wgs_mub.e
 #SBATCH --output=wgs_mub.o
 #SBATCH --mail-type=BEGIN,FAIL,END
-#SBATCH --mail-user=kkingwoo@uncc.edu
+#SBATCH --mail-user=
 #################################################
 
 python3 Step6.py

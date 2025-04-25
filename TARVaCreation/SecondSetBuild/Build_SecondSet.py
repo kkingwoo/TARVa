@@ -46,7 +46,6 @@ def make_samp_tabs(db,filepaths,tissues,clindats,out_file,md):
                 final_results.append(current)            
     db_con = sql.connect(db)
     dbcursor= db_con.cursor()
-    #db_con = sql.connect(db_path,check_same_thread=False)
     for finals in final_results:
         finals.to_sql(samp_tab,db_con,index=False,if_exists='append')
     print('SAMPLE table for second set has been created and populated\n')
@@ -101,65 +100,6 @@ def get_sample_sizes(db):
         print(q)
 
     return
-
-def run_analysis_for_volcano(ofile):
-    o = pd.read_csv(ofile)
-    counts_dict = {}
-    sample_counts = {"bulkbrain_AD":29,"bulkbrain_Control":30,"bulkbrain_MCI":27,"monocyte_AD":34,"monocyte_Control":89,"monocyte_MCI":38}
-    one,two,three,four,five,six = 'bulkbrain_AD','bulkbrain_Control','bulkbrain_MCI','monocyte_AD','monocyte_Control','monocyte_MCI'
-    comparison_tupes = [(one,four),(one,five),(one,six),(two,four),(two,five),(two,six),(three,four),(three,five),(three,six)]
-    counts_dict["mods"] = []
-    con_list,tissue_list = ['AD','Control','MCI'],['bulkbrain','monocyte']
-    unique_vals = pd.unique(o['mod_id'].tolist())
-    for u in unique_vals:
-        counts_dict["mods"].append(u)
-        for ti in tissue_list:
-            for co in con_list:
-                key_name = f"{ti}_{co}"
-                if not key_name in counts_dict.keys():
-                    counts_dict[key_name] = []
-                flt = o[ 
-                        (o['tissue'] == ti) &
-                        (o['condition'] == co) & 
-                        (o['mod_id'] == u)
-                        ]
-                
-                counts_dict[key_name].append(len(flt))
-    counting = pd.DataFrame(counts_dict)
-    
-    results = []
-    for mod in counting["mods"]:
-        mod_results = {"mod_id":mod}
-        for cond1,cond2 in comparison_tupes:
-            if cond1 in counting and cond2 in counting:
-                count1  =  counting.loc[counting["mods"] == mod, cond1].values
-                count2  =  counting.loc[counting["mods"] == mod, cond2].values
-
-                if len(count1) == 0 or len(count2) == 0:
-                    continue
-                total1 = sample_counts[cond1]
-                total2 = sample_counts[cond2]
-                
-                table = [[count1[0], total1 - count1[0]], [count2[0], total2 - count2[0]]]
-                oddsratio, pvalue = fisher_exact(table)
-
-                mod_results[f"{cond1}_vs_{cond2}_OddsRatio"] = oddsratio
-                mod_results[f"{cond1}_vs_{cond2}_P_Value"] = pvalue
-        results.append(mod_results)
-    results_df = pd.DataFrame(results)
-    
-    if not results_df.empty:
-        p_value_columns = [col for col in results_df.columns if "P_Value" in col]
-        
-        for col in p_value_columns:
-            adjusted_pvals = multipletests(results_df[col], method="fdr_bh")[1]
-            adjusted_pvals = [1e-300 if math.isinf(p) else p for p in adjusted_pvals]
-            results_df[f"{col}_Adjusted"] = adjusted_pvals
-    results_df.to_csv("fisher_results.csv",index=False)
-    
-    print(results_df)
-
-    return 
 
 def get_samp_info(db,clinical):
     info_dict = {}
@@ -607,13 +547,12 @@ if __name__=='__main__':
    j2 = sys.argv[11]
    j3 = sys.argv[12]
    topvars = sys.argv[13]
-   #mod_dict = make_modid_dict(bb_firstset,mod_dump)
-   #secondset_tab = make_samp_tabs(dbp,inpath_list,inpath_tissues,clin,out,mod_dict)
-   #results = all_tissues_conditions(dbp,out,mod_dict)
-   #sizes = get_sample_sizes(dbp)
-   #volcano_dat = run_analysis_for_volcano(out)
-   #samples_info = get_samp_info(dbp,clin)
-   #boxy = get_boxplot_dat(dbp)
+   mod_dict = make_modid_dict(bb_firstset,mod_dump)
+   secondset_tab = make_samp_tabs(dbp,inpath_list,inpath_tissues,clin,out,mod_dict)
+   results = all_tissues_conditions(dbp,out,mod_dict)
+   sizes = get_sample_sizes(dbp)
+   samples_info = get_samp_info(dbp,clin)
+   boxy = get_boxplot_dat(dbp)
    tissue_check = check_tissue_matches(dbp,bb_firstset)
-   #profiles = build_profiles(dbp,in_mods,j2,j1,j3)
-   #monocytes = top_vars_in_monocytes(dbp,topvars)
+   profiles = build_profiles(dbp,in_mods,j2,j1,j3)
+   monocytes = top_vars_in_monocytes(dbp,topvars)

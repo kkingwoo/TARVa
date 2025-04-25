@@ -2,13 +2,13 @@
 ########### Script Settings ####### Katie Jensen #
 #################################################
 #SBATCH --job-name=pileups
-#SBATCH --partition=Orion
+#SBATCH --partition=
 #SBATCH --nodes=1
 #SBATCH --time=24:00:00
 #SBATCH --error=pileups.e
 #SBATCH --output=pileups.o
 #SBATCH --mail-type=BEGIN,FAIL,END
-#SBATCH --mail-user=kkingwoo@uncc.edu
+#SBATCH --mail-user=
 #################################################
 
 

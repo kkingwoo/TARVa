@@ -1,0 +1,19 @@
+name: bio_qc
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+  - biobakery
+  - rmg
+  - anaconda
+  - r
+  - nodefaults
+dependencies:
+  - bbmap
+  - fastqc
+  - trimmomatic
+  - numpy
+  - pandas
+  - sqlite
+  - scipy
+  - gatk4

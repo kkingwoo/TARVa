@@ -13,7 +13,7 @@ from each_gene import EachGene
 from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
 from collections import defaultdict
-#from proc_pos import ProcPos
+from proc_pos import ProcPos
 from raw_counts import RawCounts
 from statsmodels.stats import multitest
 from analyze_lens import GetLens
@@ -407,7 +407,7 @@ def per_pos_analyze(in_dat,dbp,tops):
             
     print("Per position analysis is now complete >>>>>", datetime.now())
     
-    with open('/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/getRNA_UniqueVarsProgram/all_proportions_pvals.csv','w') as props_vals:
+    with open('all_proportions_pvals.csv','w') as props_vals:
         props_writer = csv.writer(props_vals)
         head = ['gene_id','u_stat','p_val']
         props_writer.writerow(head)
@@ -489,25 +489,17 @@ if __name__=='__main__':
     rna_path = sys.argv[7]
     string_path = sys.argv[8]
     counts_file = sys.argv[9]
-    #gtf_file_path = '/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/All_mrgd.gtf'
-    #fasta_path = '/users/kkingwoo/FunkLab/STARrefs/gencode_stringtie_merged_output.fasta'
-    #db_path = '/projects/kfunk_research2/ChromDBs_AndOther/TARVa.db'
-    #genes = '/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/getRNA_UniqueVarsProgram/GroupedByGenesRawSigPvals.csv'
-    #isos = '/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/getRNA_UniqueVarsProgram/single_iso_genes.csv'
-    #wgs_path = '/projects/kfunk_research2/ROSMAP_WGS/TrimmedFASTQFiles/'
-    #rna_path = '/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/getRNA_UniqueVarsProgram/RNA_VCFs/'
-    #string_path = '/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/DGEFiles_ForStringtie/'
-    #gtfs = make_gtf_table(gtf_file_path,db_path)
-    #fastas = create_fasta_table(fasta_path,db_path)
-    #g_tables = create_gene_tables(gtfs,db_path,genes_of_interest)
-    #length_dictionary = len_dict(gtfs)
-    #matched_files = get_matched_files(wgs_path,rna_path)
-    #samp_tabs = make_samp_tabs(matched_files,gtfs,db_path)
+    gtfs = make_gtf_table(gtf_file_path,db_path)
+    fastas = create_fasta_table(fasta_path,db_path)
+    g_tables = create_gene_tables(gtfs,db_path,genes_of_interest)
+    length_dictionary = len_dict(gtfs)
+    matched_files = get_matched_files(wgs_path,rna_path)
+    samp_tabs = make_samp_tabs(matched_files,gtfs,db_path)
     genes = make_gene_list(db_path)
-    #all_ids = get_rids_tids(db_path,genes)
-    #k_dfs = make_known_dfs(db_path)
-    #pos_file = make_per_pos_gene_file(db_path,all_ids[0],all_ids[1])
+    all_ids = get_rids_tids(db_path,genes)
+    k_dfs = make_known_dfs(db_path)
+    pos_file = make_per_pos_gene_file(db_path,all_ids[0],all_ids[1])
     fast_inf = get_fast_inf(db_path,counts_file)
     gtf_inf = per_pos_analyze(fast_inf,db_path,genes)
-    #results = run_tests(db_path)
+    results = run_tests(db_path)
     

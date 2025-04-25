@@ -201,10 +201,8 @@ if __name__=='__main__':
     hgvs_out = sys.argv[5]
     vep_in = sys.argv[6]
     dtu_sig = sys.argv[7]
-    #res = retrieve_tids(dbp)
-    #print(res[0])
-    #strings = parse_stringtie(string,res[0],res[1],res[2],dbp)
-    #comps = calc_tpms(strings,tfile)
-    #hgvss = get_hgvs(tab3,hgvs_out)
-    #dtus = analyze_dtu(tab3,tpms,dtu_sig) 
+    res = retrieve_tids(dbp)
+    strings = parse_stringtie(string,res[0],res[1],res[2],dbp)
+    hgvss = get_hgvs(tab3,hgvs_out)
+    dtus = analyze_dtu(tab3,tpms,dtu_sig) 
     vep_preds = get_vep_preds_dtu(vep_in,dbp,tab3)
