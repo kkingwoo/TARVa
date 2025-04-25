@@ -1,10 +1,8 @@
-## module load anaconda3
-## conda activate stringtie
 import os
 
-ad_path, control_path ='/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/AD/', '/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/Control/'
-gff='/users/kkingwoo/FunkLab/StringtieRefs/gencode.v42.annotation.gff3'
-outGtf='/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/All_mrgd.gtf'
+ad_path, control_path ='/path/to/RNAseq/AD/', '/path/to/RNAseq/Control/'
+gff='gencode.v42.annotation.gff3'
+outGtf='All_mrgd.gtf'
 os.system("rm {0}".format(outGtf))
 
 gList = []

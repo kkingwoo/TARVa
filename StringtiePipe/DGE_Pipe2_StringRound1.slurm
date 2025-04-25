@@ -2,19 +2,19 @@
 ########### Script Settings ####### Katie Jensen #
 #################################################
 #SBATCH --job-name=dge1
-#SBATCH --partition=Orion
+#SBATCH --partition=
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=5:00:00
 #SBATCH --mail-type=FAIL
-#SBATCH --mail-user=kkingwoo@uncc.edu
-#SBATCH --error=/scratch/kkingwoo/ADProj/ROSMAP_BulkBrain_2PassMapped/dge1.e
-#SBATCH --output=/scratch/kkingwoo/ADProj/ROSMAP_BulkBrain_2PassMapped/dge1.o
+#SBATCH --mail-user=
+#SBATCH --error=dge1.e
+#SBATCH --output=dge1.o
 #################################################
 
-for in_bam in `ls -d /projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/*/*/*_differential_Aligned.sortedByCoord.out.bam`
+for in_bam in `ls -d /path/to/RNAseq/*/*/*_differential_Aligned.sortedByCoord.out.bam`
 do
-	gtf='/users/kkingwoo/FunkLab/StringtieRefs/gencode.v42.annotation.gff3'
+	gtf='gencode.v42.annotation.gff3'
 	pr=${in_bam%/*}
 	pre=${pr##*/}
 	pref=${pr%%Aligned.sortedByCoord.out.bam}/$pre
@@ -27,7 +27,7 @@ do
 	tab=$pref'_round1.tab'
 	full_cov=$pref'_cov_round1.gtf'
 
-	echo -e "#!/bin/sh\n########### Script Settings ####### Katie Jensen #\n#################################################\n#SBATCH --job-name="$job_name "\n#SBATCH --partition=Nebula\n#SBATCH --nodes=1\n#SBATCH --ntasks-per-node=12\n#SBATCH --mem=64gb\n#SBATCH --time=24:00:00\n#SBATCH --mail-type=FAIL\n#SBATCH --mail-user=kkingwoo@uncc.edu\n#SBATCH --error="$err "\n#SBATCH --output="$out "\n#################################################\n\nrm *ctab\n\nstringtie $in_bam -o $out_trans --rf -t -p \$SLURM_NTASKS -G $gtf -A $tab -C $full_cov -B " > $slurm
+	echo -e "#!/bin/sh\n########### Script Settings ####### Katie Jensen #\n#################################################\n#SBATCH --job-name="$job_name "\n#SBATCH --partition=\n#SBATCH --nodes=1\n#SBATCH --ntasks-per-node=12\n#SBATCH --mem=64gb\n#SBATCH --time=24:00:00\n#SBATCH --mail-type=FAIL\n#SBATCH --mail-user=\n#SBATCH --error="$err "\n#SBATCH --output="$out "\n#################################################\n\nrm *ctab\n\nstringtie $in_bam -o $out_trans --rf -t -p \$SLURM_NTASKS -G $gtf -A $tab -C $full_cov -B " > $slurm
 	sbatch $slurm
 
 done

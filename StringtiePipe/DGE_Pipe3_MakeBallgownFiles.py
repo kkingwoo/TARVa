@@ -2,7 +2,7 @@ import os
 import csv
 import shutil
 
-main_dir = '/projects/kfunk_research/ROSMAP/RNAseq/ROSMAP_BulkBrain/ROSMAP_BulkBrain_Trimmed_fastq/'
+main_dir = ''
 
 out_file = main_dir+'ROSMAP_RNAseq_designMat.txt'
 design_mat = open(out_file, 'w')
