@@ -46,6 +46,8 @@ After installing the necessary tools and dependencies,
 
 
 
+
+****** NOTES NOTES NOTES*******************************************************************************************************************
 TARVa is a tool that identifies, analyzes, and compares RNA-editing events between two conditions.  This approach takes into consideration both depth of read and length of transcript, and scans for "A-I" and "C-U" variants in a strand-aware approach. TARVa also has an optional feature, for studies which provide both RNA-seq and WGS-seq data for each sample, to automatically filter out variant calls that are a result of the DNA transcription process and not of post-modification (RNA-editing) events.                                                              
 
 ###### **code draft suggestion 1; create user-input variable functions for paths, sample identifier information, and condition names**                                                                  

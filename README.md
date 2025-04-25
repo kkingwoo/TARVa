@@ -130,6 +130,8 @@ After installing the necessary tools and dependencies,
 
 ## License
 
+\*\*\*\*\*\* NOTES NOTES
+NOTES\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
 TARVa is a tool that identifies, analyzes, and compares RNA-editing
 events between two conditions. This approach takes into consideration
 both depth of read and length of transcript, and scans for “A-I” and
