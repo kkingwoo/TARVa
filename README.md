@@ -9,8 +9,7 @@ kat j
   - [Directory Structure](#directory-structure)
   - [Tools, Environments and
     Dependencies](#tools-environments-and-dependencies)
-  - [Getting Started](#getting-started)
-  - [How to Use](#how-to-use)
+  - [Workflow Overview](#workflow-overview)
   - [Limitations and Considerations](#limitations-and-considerations)
   - [Acknowledgments](#acknowledgments)
   - [License](#license)
@@ -20,13 +19,15 @@ kat j
 ## Project Overview
 
 [**TARVa**](#transcript-analysis-of-rna-variants-tarva) is a tool which
-enables analysis of epitranscriptomic modifications. Starting with a
-global overview, the pipeline moves through non-hierarchical
-stratifications of the data, ending with local, per-position comparisons
-across tissue types and conditions. The workflow is set up for use with
-paired RNAseq and WGS raw sequencing datasets (fastq) from more than one
-condition and/or tissue, and covers three data preprocessing pipelines
-as well as the main TARVa pipeline.
+enables analysis of epitranscriptomic modifications from raw RNA
+sequencing data, taking into consideration both depth of read and length
+of transcript, and scans for all variant call-types in a strand-aware
+fashion. Starting with a global overview, the pipeline moves through
+non-hierarchical stratifications of the data, ending with local,
+per-position comparisons across tissue types and conditions. The
+workflow is set up for use with paired RNAseq and WGS raw sequencing
+datasets (fastq) from more than one condition and/or tissue, and covers
+three data preprocessing pipelines as well as the main TARVa pipeline.
 
 ## Directory Structure
 
@@ -113,71 +114,56 @@ as well as the main TARVa pipeline.
 
 ## Tools, Environments and Dependencies
 
+Python 3 is a requirement for this workflow.
+
 For **data preprocessing pipelines** ([gatk_rna](GatkRnaSeqPipe/),
 [gatk_wgs](GatkWGSeqPipe/), [stringtie](StringtiePipe/)):  
-- conda envs - *bio_qc* ([text](bio_qc_channels_dependencies.txt),
-[yml](bio_qc.yml))
+- conda envs  
+– *bio_qc* ([text](bio_qc_channels_dependencies.txt), [yml](bio_qc.yml))
 
-## Getting Started
+- R/4.3.3
 
-After installing the necessary tools and dependencies,
+- samtools/1.11
 
-## How to Use
+- gatk/4.2.0
+
+- STAR
+
+- Stringtie
+
+- BWA
+
+For the **TARVa analysis pipelines** ([analysis set
+1](TARVaCreation/OriginalBuild/), [analysis set 1: checks and
+changes](TARVaCreation/DownStreamDBCleanup/), [analysis set
+2](TARVaCreation/SecondSetBuild/)):  
+- conda envs  
+– *tarva* ([text](tarva_channels_dependencies.txt), [yml](tarva.yml))
+
+- python modules  
+  – *sqlite3*  
+  – *numpy*  
+  – *scipy*  
+  – *pandas*  
+  – *statsmodels*  
+  – *vcf*
+
+## Workflow Overview
+
+To implement the full TARVa workflow, the **data pre-processing
+pipelines** ([gatk_rna](GatkRnaSeqPipe/)
+([README](GatkRnaSeqPipe/README_gatkRNA.md)), [gatk_wgs](GatkWGSeqPipe/)
+([README](GatkWGSeqPipe/README_gatkWGS.md)), [stringtie](StringtiePipe/)
+([README](StringtiePipe/README_Stringtie.md))) should be run first.
+Output from each pipeline can then be used as input for the **TARVa
+analysis pipeline** ([analysis set 1](TARVaCreation/OriginalBuild/)
+([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md)),
+[analysis set 1: checks and
+changes](TARVaCreation/DownStreamDBCleanup/), [analysis set
+2](TARVaCreation/SecondSetBuild/)).
 
 ## Limitations and Considerations
 
 ## Acknowledgments
 
 ## License
-
-\*\*\*\*\*\* NOTES NOTES
-NOTES\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*\*
-TARVa is a tool that identifies, analyzes, and compares RNA-editing
-events between two conditions. This approach takes into consideration
-both depth of read and length of transcript, and scans for “A-I” and
-“C-U” variants in a strand-aware approach. TARVa also has an optional
-feature, for studies which provide both RNA-seq and WGS-seq data for
-each sample, to automatically filter out variant calls that are a result
-of the DNA transcription process and not of post-modification
-(RNA-editing) events.
-
-###### **code draft suggestion 1; create user-input variable functions for paths, sample identifier information, and condition names**
-
-###### **code draft suggestion 2: make necessary changes to reflect the optionality of genomic variant calls being added to the analysis pipeline**
-
-#### Setup
-
-See the “About.pdf” document for details on the . Not following this
-pipeline might lead to inaccurate outputs from TARVa
-
-##### 1.) Unzip TARVaScripts.zip
-
-    Contents:  
-        **a.** *BuildTarvaDBs.py*  
-             This is the **main script**.
-*make_sample_tabs*,*each_gene*, *raw_counts*, *dictionaries* and
-*analyze_lens* are all static methods, housed also in the TARVaScripts
-directory.  
-        **b.** *TARVa.slurm*  
-            This is the slurm directive script that activates the
-**tarva** environment, assigns path information and runs the main
-script.
-
-**code draft suggestion 3: remove this from scripts directory and
-instead provide information in a later section of this document
-describing resources that are needed**
-
-        **c.** *tarva_env_deps.txt*  
-            TARVa runs in the custom conda environment, **tarva**. This
-file indicates all of the packages and dependencies that belong in the
-environment. To create the environment, [See step
-2](#2-create-the-tarva-environment)
-
-##### 2.) Create the Tarva environment
-
-The **tarva** environment can be created using the command:  
-`conda create -n [env_name] -c [channel] package(s)` c
-
-##### 3.) Assign path names and condition names in scripts —–\>\>\>\>\> REMOVE THIS STEP ONCE code draft suggestion 1 is implemented
-
-##### 4.) Submit job directive script
