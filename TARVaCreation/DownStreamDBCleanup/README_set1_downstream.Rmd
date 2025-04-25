@@ -14,5 +14,4 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## GATK RNAseq Pipeline                                           
-
+## Analysis set 1: DB check and change                                                

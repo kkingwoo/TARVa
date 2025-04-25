@@ -154,13 +154,14 @@ To implement the full TARVa workflow, the **data pre-processing
 pipelines** ([gatk_rna](GatkRnaSeqPipe/)
 ([README](GatkRnaSeqPipe/README_gatkRNA.md)), [gatk_wgs](GatkWGSeqPipe/)
 ([README](GatkWGSeqPipe/README_gatkWGS.md)), [stringtie](StringtiePipe/)
-([README](StringtiePipe/README_Stringtie.md))) should be run first.
+([README](StringtiePipe/README_Stringtie.md))) are run first.  
 Output from each pipeline can then be used as input for the **TARVa
 analysis pipeline** ([analysis set 1](TARVaCreation/OriginalBuild/)
 ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md)),
-[analysis set 1: checks and
-changes](TARVaCreation/DownStreamDBCleanup/), [analysis set
-2](TARVaCreation/SecondSetBuild/)).
+[analysis set 1: checks and changes](TARVaCreation/DownStreamDBCleanup/)
+([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md)),
+[analysis set 2](TARVaCreation/SecondSetBuild/)
+([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))).
 
 ## Limitations and Considerations
 
