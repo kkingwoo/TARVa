@@ -15,27 +15,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 # **T**ranscript **A**nalysis of **R**NA **Va**riants (TARVa)                                                               
 ## Project Overview                                   
-  [**TARVa**](#transcript-analysis-of-rna-variants-tarva) is a tool which enables analysis of epitranscriptomic modifications from raw RNA sequencing data, taking  into consideration both depth of read and length of transcript, and scans for all variant call-types in a strand-aware fashion. Starting with a global overview, the pipeline moves through non-hierarchical stratifications of the data, ending with local, per-position comparisons across tissue types and conditions. The  workflow is set up for use with paired RNAseq and WGS raw sequencing datasets (fastq) from more than one condition and/or tissue, and covers three data preprocessing pipelines as well as the main TARVa pipeline.                                                         
-
-## Directory Structure                                             
-
-<details>
-<summary><strong>📂 Project Directory Tree (click to expand)</strong></summary>
-
-```{r structure-tree, echo=FALSE, results='asis'}
-cat("<pre><code>")
-cat(readLines("structure.txt"), sep = "\n")
-cat("</code></pre>")
-```
-
-</details>                                            
+  [**TARVa**](#transcript-analysis-of-rna-variants-tarva) is a tool which enables analysis of epitranscriptomic modifications from raw RNA sequencing data, taking  into consideration both depth of read and length of transcript, and scans for all variant call-types in a strand-aware fashion. Starting with a global overview, the pipeline moves through non-hierarchical stratifications of the data, ending with local, per-position comparisons across tissue types and conditions. The  workflow is set up for use with paired-sample raw RNAseq and whole genome sequencing files (fastq) from more than one condition and/or tissue, and covers three data preprocessing pipelines in addition to the main TARVa analysis pipeline.                                                         
 
 ## Tools, Environments and Dependencies
-Python 3 is a requirement for this workflow.                                                  
+Python 3 is a requirement for this workflow and custom conda environments were created for each group of pipelines ([data preprocessing](#data-preprocessing-pipelines), [TARVa analysis](#tarva-analysis-pipelines)).                                                
 
-For __data preprocessing pipelines__ ([gatk_rna](GatkRnaSeqPipe/), [gatk_wgs](GatkWGSeqPipe/), [stringtie](StringtiePipe/)):  
+For [__data preprocessing pipelines__](#data-preprocessing-pipes)<a name="data-preprocessing-pipelines"></a>  ([Stringtie](StringtiePipe/)<a name="stringtie-pipeline"></a>, [GATK WGS](GatkWGSeqPipe/)<a name="gatk-wgs"></a>, [GATK RNA](GatkRnaSeqPipe/))<a name="gatk-rna"></a>:  
   - conda envs                                                                        
-      -- *bio_qc* ([text](bio_qc_channels_dependencies.txt), [yml](bio_qc.yml))    
+      -- *bio_qc* dependencies ([text](bio_qc_channels_dependencies.txt), [yml](bio_qc.yml))    
   
   - R/4.3.3                                                                     
   
@@ -49,9 +36,9 @@ For __data preprocessing pipelines__ ([gatk_rna](GatkRnaSeqPipe/), [gatk_wgs](Ga
   
   - BWA
   
-For the __TARVa analysis pipelines__ ([analysis set 1](TARVaCreation/OriginalBuild/), [analysis set 1: checks and changes](TARVaCreation/DownStreamDBCleanup/),  [analysis set 2](TARVaCreation/SecondSetBuild/)):                                                           
+For the [__TARVa analysis pipelines__](#tarva-analysis-pipes)<a name="tarva-analysis-pipelines"></a> ([Analysis set 1](TARVaCreation/OriginalBuild/), [Analysis set 1 checks and changes](TARVaCreation/DownStreamDBCleanup/),  [Analysis set 2](TARVaCreation/SecondSetBuild/)):                                                           
   - conda envs                                                                            
-    -- *tarva* ([text](tarva_channels_dependencies.txt), [yml](tarva.yml))                                                               
+    -- *tarva* dependencies ([text](tarva_channels_dependencies.txt), [yml](tarva.yml))                                                               
   
   - python modules                                            
     -- *sqlite3*                                                                                                                                          
@@ -61,9 +48,40 @@ For the __TARVa analysis pipelines__ ([analysis set 1](TARVaCreation/OriginalBui
     -- *statsmodels*                               
     -- *vcf*                                               
                           
+## Directory Structure                                             
+
+<details>
+<summary><strong>📂 Project Directory Tree (click to expand)</strong></summary>
+
+```{r structure-tree, echo=FALSE, results='asis'}
+cat("<pre><code>")
+cat(readLines("structure.txt"), sep = "\n")
+cat("</code></pre>")
+```
+
+</details>                   
+
 ## Workflow Overview                                                                                                             
-To implement the full TARVa workflow, the __data pre-processing pipelines__  ( [stringtie](StringtiePipe/) ([README](StringtiePipe/README_Stringtie.md)),  [gatk_rna](GatkRnaSeqPipe/) ([README](GatkRnaSeqPipe/README_gatkRNA.md)), [gatk_wgs](GatkWGSeqPipe/) ([README](GatkWGSeqPipe/README_gatkWGS.md))) are run first.                               
-Output from each pipeline can then be used as input for the __TARVa analysis pipeline__ ([analysis set 1](TARVaCreation/OriginalBuild/) ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md)), [analysis set 1: checks and changes](TARVaCreation/DownStreamDBCleanup/) ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md)), [analysis set 2](TARVaCreation/SecondSetBuild/) ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))).                                                        
+To implement the full TARVa workflow, the following [__data pre-processing pipelines__](#data-preprocessing-pipelines)<a name="data-preprocessing-pipes"></a> are run in the following order:                                                   
+  1. [Stringtie pipeline](StringtiePipe/) ([README](StringtiePipe/README_Stringtie.md))                                    
+    Stringtie receives STAR RNA sequencing alignment bam files as input and creates transcript expression level files (.ctab) and a gtf file containing nucleotide positions, transcript features, etc. of each transcript identified in the dataset.                                             
+
+  2. [GATK WGS](GatkWGSeqPipe/) ([README](GatkWGSeqPipe/README_gatkWGS.md))                                       
+    A GATK pipeline for small somatic variant-finding in WGS sequencing data is implemented to provide the TARVa tool with a baseline set of somatic genomic variants (vcf as output) for each sample. WGS data only for samples which also have RNAseq data available is used in this step.                                                                               
+
+  3. [GATK RNA](GatkRnaSeqPipe/) ([README](GatkRnaSeqPipe/README_gatkRNA.md))                                         
+    For samples with WGS data that has been processed in the previous step, RNAseq sequencing data is run through a GATK pipeline for small variant finding in RNAseq (vcf as output).                                                                     
+  
+
+Output from the data pre-processing phase of the workflow can then be used as input for the [__TARVa analysis pipelines__](#tarva-analysis-pipelines)<a name="tarva-analysis-pipes"></a>, which can be executed in the following order:                                       
+
+  1. [Analysis set 1](TARVaCreation/OriginalBuild/) ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md))                         
+    RNA variants are first parsed to filter out any genomic variants, then a database is built from several data sources to store detailed information about RNA-specific modifications in the dataset.                                                 
+  
+  2. [Analysis set 1 checks and changes](TARVaCreation/DownStreamDBCleanup/) ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md))                                          
+  3. [Analysis set 2](TARVaCreation/SecondSetBuild/) ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))                                         
+
+## Limitations and Considerations                                                   
 
 
 ## License                                    

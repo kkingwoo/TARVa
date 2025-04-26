@@ -1,75 +1,100 @@
 .
+├── GatkRnaSeqPipe
+│   ├── README_gatkRNA.Rmd
+│   ├── README_gatkRNA.md
+│   ├── README_gatkRNA_files
+│   │   └── figure-gfm
+│   │       └── pressure-1.png
+│   ├── STAR_array.slurm
+│   ├── full_gatk.py
+│   ├── full_gatk.slurm
+│   ├── gatkPipe.py
+│   ├── match_monocytes.py
+│   ├── runqc.py
+│   ├── star.py
+│   └── star_run.py
+├── GatkWGSeqPipe
+│   ├── README_gatkWGS.Rmd
+│   ├── README_gatkWGS.md
+│   ├── README_gatkWGS_files
+│   │   └── figure-gfm
+│   │       └── pressure-1.png
+│   ├── Step1_alignment.slurm
+│   ├── Step2_mergeBams.slurm
+│   ├── Step3_5_sortUnalnBams.slurm
+│   ├── Step3_mkUnalnBam.slurm
+│   ├── Step4_MergeBamAlns.py
+│   ├── Step4_MergeBamAlns.slurm
+│   ├── Step5_MD_SS.py
+│   ├── Step5_MarkDuplicates_SortSam.slurm
+│   ├── Step6.py
+│   ├── Step6_BaseRecal_ApplyBQSR.slurm
+│   ├── Step7.py
+│   ├── Step7_CreatePons.py
+│   ├── Step7_DBImport.py
+│   ├── Step7_Mutect2_PON.slurm
+│   ├── Step7_SelectVars.py
+│   ├── Step8_ApplyPonsToAD.py
+│   ├── Step8_Mutect2_AD.slurm
+│   ├── Step9_GetPileupSummaries.slurm
+│   ├── Step9_GetPileupSummaries_AD.py
+│   └── Step9_GetPileupSummaries_Control.py
+├── LICENSE
+├── README.Rmd
+├── README.md
+├── StringtiePipe
+│   ├── DGE_Pipe1_RunStar.slurm
+│   ├── DGE_Pipe2_Round2.py
+│   ├── DGE_Pipe2_StringRound1.slurm
+│   ├── DGE_Pipe2_StringRound2.slurm
+│   ├── DGE_Pipe2_StringRound3.slurm
+│   ├── DGE_Pipe3_MakeBallgownFiles.py
+│   ├── README_Stringtie.Rmd
+│   ├── README_Stringtie.md
+│   └── README_Stringtie_files
+│       └── figure-gfm
+│           └── pressure-1.png
 ├── TARVa
-│   ├── GatkRnaSeqPipe
-│   │   ├── README_gatkRNA.Rmd
-│   │   ├── full_gatk.py
-│   │   ├── full_gatk.slurm
-│   │   └── gatkPipe.py
-│   ├── GatkWGSeqPipe
-│   │   ├── README_gatkWGS.Rmd
-│   │   ├── Step1_alignment.slurm
-│   │   ├── Step2_mergeBams.slurm
-│   │   ├── Step3_5_sortUnalnBams.slurm
-│   │   ├── Step3_mkUnalnBam.slurm
-│   │   ├── Step4_MergeBamAlns.py
-│   │   ├── Step4_MergeBamAlns.slurm
-│   │   ├── Step5_MD_SS.py
-│   │   ├── Step5_MarkDuplicates_SortSam.slurm
-│   │   ├── Step6.py
-│   │   ├── Step6_BaseRecal_ApplyBQSR.slurm
-│   │   ├── Step7.py
-│   │   ├── Step7_CreatePons.py
-│   │   ├── Step7_DBImport.py
-│   │   ├── Step7_Mutect2_PON.slurm
-│   │   ├── Step7_SelectVars.py
-│   │   ├── Step8_ApplyPonsToAD.py
-│   │   ├── Step8_Mutect2_AD.slurm
-│   │   ├── Step9_GetPileupSummaries.slurm
-│   │   ├── Step9_GetPileupSummaries_AD.py
-│   │   └── Step9_GetPileupSummaries_Control.py
-│   ├── LICENSE
-│   ├── README.Rmd
-│   ├── README.md
-│   ├── StringtiePipe
-│   │   ├── DGE_Pipe1_RunStar.slurm
-│   │   ├── DGE_Pipe2_Round2.py
-│   │   ├── DGE_Pipe2_StringRound1.slurm
-│   │   ├── DGE_Pipe2_StringRound2.slurm
-│   │   ├── DGE_Pipe2_StringRound3.slurm
-│   │   ├── DGE_Pipe3_MakeBallgownFiles.py
-│   │   └── README_Stringtie.Rmd
-│   ├── TARVa
-│   │   └── LICENSE
-│   ├── TARVaCreation
-│   │   ├── DownStreamDBCleanup
-│   │   │   ├── AnET.slurm
-│   │   │   ├── adjust_lists.py
-│   │   │   ├── anet.py
-│   │   │   ├── parse_vep.py
-│   │   │   ├── sep_call_type.py
-│   │   │   └── type_by_gene.py
-│   │   ├── OriginalBuild
-│   │   │   ├── BuildTarvaDBs.py
-│   │   │   ├── analyze_lens.py
-│   │   │   ├── build.slurm
-│   │   │   ├── checkRNA_againstWGS.py
-│   │   │   ├── each_gene.py
-│   │   │   ├── make_sample_tabs.py
-│   │   │   ├── proc_pos.py
-│   │   │   └── raw_counts.py
-│   │   └── SecondSetBuild
-│   │       ├── Build_SecondSet.py
-│   │       ├── Rel_Abu.slurm
-│   │       ├── build2.slurm
-│   │       ├── fpkm_within_condition_analysis.py
-│   │       ├── get_second_set_counts.py
-│   │       ├── make_secondset_tabs.py
-│   │       ├── read_mstrg_tab.py
-│   │       └── tpm_analysis.py
-│   ├── bio_qc.yml
-│   ├── bio_qc_channels_dependencies.txt
-│   ├── tarva.yml
-│   └── tarva_channels_dependencies.txt
-└── structure.txt
+│   └── LICENSE
+├── TARVaCreation
+│   ├── DownStreamDBCleanup
+│   │   ├── AnET.slurm
+│   │   ├── README_set1_downstream.Rmd
+│   │   ├── README_set1_downstream.md
+│   │   ├── adjust_lists.py
+│   │   ├── anet.py
+│   │   ├── parse_vep.py
+│   │   ├── sep_call_type.py
+│   │   └── type_by_gene.py
+│   ├── OriginalBuild
+│   │   ├── BuildTarvaDBs.py
+│   │   ├── README_OriginalBuild.Rmd
+│   │   ├── README_OriginalBuild.md
+│   │   ├── README_OriginalBuild_files
+│   │   │   └── figure-gfm
+│   │   │       └── pressure-1.png
+│   │   ├── analyze_lens.py
+│   │   ├── build.slurm
+│   │   ├── checkRNA_againstWGS.py
+│   │   ├── each_gene.py
+│   │   ├── make_sample_tabs.py
+│   │   ├── proc_pos.py
+│   │   └── raw_counts.py
+│   └── SecondSetBuild
+│       ├── Build_SecondSet.py
+│       ├── README_secondset_build.Rmd
+│       ├── README_secondset_build.md
+│       ├── Rel_Abu.slurm
+│       ├── build2.slurm
+│       ├── fpkm_within_condition_analysis.py
+│       ├── get_second_set_counts.py
+│       ├── make_secondset_tabs.py
+│       ├── read_mstrg_tab.py
+│       └── tpm_analysis.py
+├── bio_qc.yml
+├── bio_qc_channels_dependencies.txt
+├── structure.txt
+├── tarva.yml
+└── tarva_channels_dependencies.txt
 
-10 directories, 63 files
+17 directories, 81 files
