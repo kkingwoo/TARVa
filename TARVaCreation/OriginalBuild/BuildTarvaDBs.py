@@ -9,11 +9,9 @@ from datetime import datetime
 from concurrent import futures
 from make_sample_tabs import SampleTabs
 from Bio import SeqIO
-from each_gene import EachGene
 from scipy.stats import ttest_ind
 from statsmodels.stats.multitest import multipletests
 from collections import defaultdict
-from proc_pos import ProcPos
 from raw_counts import RawCounts
 from statsmodels.stats import multitest
 from analyze_lens import GetLens
