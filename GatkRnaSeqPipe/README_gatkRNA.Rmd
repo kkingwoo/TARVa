@@ -17,7 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # GATK RNAseq Pipeline                                
 
 
-This pipeline is last in the data pre-processing group of the workflow. The following steps are executed for the pipeline:                            
+This pipeline is last in the data pre-processing group of the workflow and processes RNAseq data to create variant call format (vcf) files. The following steps are executed for the pipeline:                            
 
 ## Sequencing read QC and alignment                                 
 

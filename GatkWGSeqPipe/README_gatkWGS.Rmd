@@ -14,5 +14,57 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## GATK WGS Pipeline                                        
+# GATK WGS Pipeline                                   
+
+This pipeline is second in the data pre-processing group of the workflow, and processes the whole genome sequencing (WGS) data to create variant call format (vcf) files. The steps below are executed for the pipeline, after FastQC and Trimmomatic have been applied for [__quality checks and control of sequencing reads__](../GatkRnaSeqPipe/runqc.py).                            
+
+
+## Step 1: alignment                              
+
+  - [__Step1_alignment.slurm__](Step1_alignment.slurm) runs BWA-mem to align the sequencing reads to a reference genome, then sorts the bams with samtools.                           
+  
+## Step 2: merge bams                             
+
+  - [__Step2_mergeBams.slurm__](Step2_mergeBams.slurm) uses samtools to merge sorted bams.                            
+   
+## Step 3: make unaligned bams                           
+
+  - [__Step3_mkUnalnBam.slurm__](Step3_mkUnalnBam.slurm) uses GATK's *FastqToSam* to create unaligned bam files from the fastq files.                           
+  
+## Step 3.5: sort unaligned bams                                     
+
+  - [__Step3_5_sortUnalnBams.slurm__](Step3_5_sortUnalnBams.slurm) uses GATK's *SortSam* to sort the unaligned bams.                            
+  
+## Step 4: merge bam alignments                                     
+
+  - [__Step4_MergeBamAlns.slurm__](Step4_MergeBamAlns.slurm) runs [__Step4_MergeBamAlns.py__](Step4_MergeBamAlns.py) which submits a slurm job that uses GATK's *MergeBamAlignment* for merging aligned bams with unmapped bams.                             
+  
+## Step 5: mark duplicates                            
+
+  - [__Step5_MarkDuplicates_SortSam.slurm__](Step5_MarkDuplicates_SortSam.slurm) runs [__Step5_MD_SS.py__](Step5_MD_SS.py), which creates variable names then submits a job that runs GATK's *MarkDuplicates* for marking duplicate alignments and *SortSam* to sort the marked duplicates output.                      
+  
+## Step 6: base recalibration and apply bqsr                            
+
+  - [__Step6_BaseRecal_ApplyBQSR.slurm__](Step6_BaseRecal_ApplyBQSR.slurm) submits [__Step6.py__](Step6.py), which submits GATK's *BaseRecalibrator* and *ApplyBQSR*  for improvement of accuracy of base quality estimates.                                   
+  
+## Step 7: create panel of normals (pons)                                                                    
+This step is not needed if GATK's downloadable PONs are sufficient for the study.                                   
+
+  - [__Step7_Mutect2_PON.slurm__](Step7_Mutect2_PON.slurm) is submitted to the job scheduler, which first runs [__Step7.py__](Step7.py) for Mutect2 variant calling of the Control samples, then [__Step7__CreatePons.py__](Step7_CreatePons.py) which creates PONs information such as variant and coordinates.              
+  
+## Step 7: import genomics database                               
+
+   - [__Step7_DBImport.py__](Step7_DBImport.py) imports the pons to a database with GATK's *GenomicsDBImport*.                                                               
+   
+## Step 7: select variants                                    
+
+  - [__Step7_SelectVars.py__](Step7_SelectVars.py) runs GATK's *SelectVars* to create a final vcf file containing the final set of PONs for downstream analysis.                                   
+
+## Step 8: variant calling in remaining or all conditions                                       
+
+  - [__Step8_Mutect2_AD.slurm__](Step8_Mutect2_AD.slurm) runs [__Step8_ApplyPonsToAD.py__](Step8_ApplyPonsToAD.py) which uses a PONs as input to GATK's *Mutect2* for variant-calling.                                            
+
+## Step 9: filter vcf files                                                                                                         
+
+  - [__Step9_GetPileupSummaries.slurm__](Step9_GetPileupSummaries.slurm) runs separate python scripts for each condition ([__Step9_GetPileupSummaries_AD.py__](Step9_GetPileupSummaries_AD.py) and [__Step9_GetPileupSummaries_Control.py__](Step9_GetPileupSummaries_Control.py)) for final filtration of the vcf files with GATK's *GetPileupSummaries*, *CalculateContamination*, and *FilterMutectCalls*. The resulting files are used in the TARVa [__OriginalBuild__](../TARVaCreation/OriginalBuild/) pipeline.                                        
 
