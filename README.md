@@ -33,14 +33,13 @@ main TARVa analysis pipeline.
 
 Python 3 is a requirement for this workflow and custom conda
 environments were created for each group of pipelines ([data
-preprocessing](#data-preprocessing-pipelines), [TARVa
+pre-processing](#data-pre-processing-pipelines), [TARVa
 analysis](#tarva-analysis-pipelines)).
 
-For [**data preprocessing
-pipelines**](#data-preprocessing-pipes)<a name="data-preprocessing-pipelines"></a>
-([Stringtie](StringtiePipe/)<a name="stringtie-pipeline"></a>, [GATK
-WGS](GatkWGSeqPipe/)<a name="gatk-wgs"></a>, [GATK
-RNA](GatkRnaSeqPipe/))<a name="gatk-rna"></a>:  
+For [**data pre-processing
+pipelines**](#data-pre-processing-pipes)<a name="data-pre-processing-pipelines"></a>
+([Stringtie](StringtiePipe/), [GATK WGS](GatkWGSeqPipe/), [GATK
+RNA](GatkRnaSeqPipe/)):  
 - conda envs  
 – *bio_qc* dependencies ([text](bio_qc_channels_dependencies.txt),
 [yml](bio_qc.yml))
@@ -59,8 +58,8 @@ RNA](GatkRnaSeqPipe/))<a name="gatk-rna"></a>:
 
 For the [**TARVa analysis
 pipelines**](#tarva-analysis-pipes)<a name="tarva-analysis-pipelines"></a>
-([Analysis set 1](TARVaCreation/OriginalBuild/), [Analysis set 1 checks
-and changes](TARVaCreation/DownStreamDBCleanup/), [Analysis set
+([DB Build](TARVaCreation/OriginalBuild/), [Analysis set
+1](TARVaCreation/DownStreamDBCleanup/), [Analysis set
 2](TARVaCreation/SecondSetBuild/)):  
 - conda envs  
 – *tarva* dependencies ([text](tarva_channels_dependencies.txt),
@@ -186,7 +185,7 @@ and changes](TARVaCreation/DownStreamDBCleanup/), [Analysis set
 
 To implement the full TARVa workflow, the following [**data
 pre-processing
-pipelines**](#data-preprocessing-pipelines)<a name="data-preprocessing-pipes"></a>
+pipelines**](#data-pre-processing-pipelines)<a name="data-pre-processing-pipes"></a>
 are run in the following order:  
 1. [Stringtie pipeline](StringtiePipe/)
 ([README](StringtiePipe/README_Stringtie.md))  
@@ -214,19 +213,31 @@ used as input for the [**TARVa analysis
 pipelines**](#tarva-analysis-pipelines)<a name="tarva-analysis-pipes"></a>,
 which can be executed in the following order:
 
-1.  [Analysis set 1](TARVaCreation/OriginalBuild/)
+1.  [DB Build](TARVaCreation/OriginalBuild/)
     ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md))  
     RNA variants are first parsed to filter out any genomic variants,
     then a database is built from several data sources to store detailed
     information about RNA-specific modifications in the dataset.
 
-2.  [Analysis set 1 checks and
-    changes](TARVaCreation/DownStreamDBCleanup/)
+2.  [Analysis set 1](TARVaCreation/DownStreamDBCleanup/)
     ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md))  
+    Analyses of first set of data, consisting of one tissue type, two
+    different conditions.
 
 3.  [Analysis set 2](TARVaCreation/SecondSetBuild/)
-    ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))
+    ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))  
+    Analyses of second set of data, consisting of a third condition for
+    the tissue type assessed in the previous step and the three same
+    conditions for a different tissue.
 
 ## Limitations and Considerations
+
+- This tool was created for and tested on datasets from the [__Religious Orders Study/Memory and Aging Project (ROSMAP)__](https://dss.niagads.org/cohorts/religious-orders-study-memory-and-aging-project-rosmap/). While the code works for the ROSMAP dataset in computing envrinments comparable to the testing environment,  it is not yet generalizable to other datasets or computing environments. Further more, Analysis Set 2 was added on later in the project but could be integrated with Analysis set 1 so that all conditions and tissues can be assessed simultaneously.                             
+
+- Current goals for development include the following:  
+  – fix code and database redundancies  
+  – replace absolute paths with relative paths  
+  – generalizability of condition, tissue, and related variables for
+  applicability to different datasets
 
 ## License

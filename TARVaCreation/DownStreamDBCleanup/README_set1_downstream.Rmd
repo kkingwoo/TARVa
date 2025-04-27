@@ -14,4 +14,5 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Analysis set 1: DB check and change                                                
+## Analysis set 1                                   
+This analysis step is part of the TARVa analysis pipeline. 
