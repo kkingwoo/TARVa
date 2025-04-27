@@ -416,67 +416,6 @@ def per_pos_analyze(in_dat,dbp,tops):
     return
     
 
-def run_tests(db_path):
-    out_file = open('raw_count_pvals_per_gene.csv','w')
-    out_write = csv.writer(out_file)
-    header = ['gene','ai_pval','ai_adj','ad_ai_ct','co_ai_ct','cu_pval','cu_adj','ad_cu_ct','co_cu_ct']
-    out_write.writerow(header)
-    out_file.close()
-    g_tab,s_tab = 'gtf_tab','sample_tab'
-    db_con = sql.connect(db_path,check_same_thread = False)
-    db  = db_con.cursor()
-    types = ("A-I","C-U","A-I","C-U")
-    ty = list(set(types))
-    genes = db.execute(f"SELECT DISTINCT ref_id FROM {s_tab}").fetchall()
-    gene_list = [gen[0] for gen in genes]
-    
-    params = ','.join(['?'] * len(ty))
-    ids = db.execute(f"SELECT DISTINCT rid,condition FROM {s_tab}").fetchall()
-    a,c = 0,0
-    for iss in ids:
-        con = iss[1]
-        if con == "Control":
-            c+=1
-        else:
-            a+=1
-    final_results = []
-    list_of_genes = []
-    list_of_ai_pvals = []
-    list_of_cu_pvals = []
-    list_of_ad_ai_cts,list_of_co_ai_cts = [],[]
-    list_of_ad_cu_cts,list_of_co_cu_cts = [],[]
-    out_file = open('raw_count_pvals_per_gene.csv','a')
-    out_writing = csv.writer(out_file)
-    with futures.ProcessPoolExecutor(max_workers=64) as mst:
-        print('************Getting raw counts per ref_id and calculating t-test p-vals --> ',datetime.now())
-        wait_for = [mst.submit(RawCounts.raw_counts_per_gene,db_path,gene,params,a,c,s_tab,ty) for gene in gene_list if not gene == None]
-        for fu in futures.as_completed(wait_for):
-            current = fu.result()
-            final_results.append(current)
-    
-        for fi in final_results:
-            if fi:
-                tupes = fi[0]
-                genest = tupes[0]
-                adaict = tupes[2]
-                adcuct = tupes[5]
-                coaict = tupes[3]
-                cocuct = tupes[6]
-                aip = float(tupes[1])
-                cup = float(tupes[4])
-                list_of_genes.append(genest)
-                list_of_ai_pvals.append(aip)
-                list_of_cu_pvals.append(cup)
-                list_of_ad_ai_cts.append(adaict)
-                list_of_ad_cu_cts.append(adcuct)
-                list_of_co_ai_cts.append(coaict)
-                list_of_co_cu_cts.append(cocuct)
-    ai_adj = [1.0 if np.isnan(p) else p for p in list_of_ai_pvals]
-    adjusted_ai = multitest.multipletests(ai_adj, method='fdr_bh')[1]
-    final_adjusted_ai = [np.nan if np.isnan(p) else p for p in adjusted_ai]
-    
-    return
-
 if __name__=='__main__':
     gtf_file_path = sys.argv[1] 
     fasta_path = sys.argv[2] 
@@ -499,5 +438,4 @@ if __name__=='__main__':
     pos_file = make_per_pos_gene_file(db_path,all_ids[0],all_ids[1])
     fast_inf = get_fast_inf(db_path,counts_file)
     gtf_inf = per_pos_analyze(fast_inf,db_path,genes)
-    results = run_tests(db_path)
     
