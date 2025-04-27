@@ -1,7 +1,7 @@
 README
 ================
 kat j
-2025-04-26
+2025-04-27
 
 - [GATK WGS Pipeline](#gatk-wgs-pipeline)
   - [Step 1: alignment](#step-1-alignment)
@@ -78,9 +78,9 @@ the study.
 
 - [**Step7_Mutect2_PON.slurm**](Step7_Mutect2_PON.slurm) is submitted to
   the job scheduler, which first runs [**Step7.py**](Step7.py) for
-  Mutect2 variant calling of the Control samples, then
-  [\_\_Step7\_\_CreatePons.py\_\_](Step7_CreatePons.py) which creates
-  PONs information such as variant and coordinates.
+  Mutect2 variant calling of the Control samples in ‘tumor-only’ mode,
+  then [**Step7_CreatePons.py**](Step7_CreatePons.py) which returns
+  genomic coordinates and .
 
 ## Step 7: import genomics database
 
@@ -90,8 +90,8 @@ the study.
 ## Step 7: select variants
 
 - [**Step7_SelectVars.py**](Step7_SelectVars.py) runs GATK’s
-  *SelectVars* to create a final vcf file containing the final set of
-  PONs for downstream analysis.
+  *SelectVars* with the previously created database as input, to create
+  a final vcf file containing the set of PONs for downstream analysis.
 
 ## Step 8: variant calling in remaining or all conditions
 

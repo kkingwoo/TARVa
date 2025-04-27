@@ -50,7 +50,7 @@ This pipeline is second in the data pre-processing group of the workflow, and pr
 ## Step 7: create panel of normals (pons)                                                                    
 This step is not needed if GATK's downloadable PONs are sufficient for the study.                                   
 
-  - [__Step7_Mutect2_PON.slurm__](Step7_Mutect2_PON.slurm) is submitted to the job scheduler, which first runs [__Step7.py__](Step7.py) for Mutect2 variant calling of the Control samples, then [__Step7__CreatePons.py__](Step7_CreatePons.py) which creates PONs information such as variant and coordinates.              
+  - [__Step7_Mutect2_PON.slurm__](Step7_Mutect2_PON.slurm) is submitted to the job scheduler, which first runs [__Step7.py__](Step7.py) for Mutect2 variant calling of the Control samples in 'tumor-only' mode, then [__Step7_CreatePons.py__](Step7_CreatePons.py) which returns genomic coordinates and .              
   
 ## Step 7: import genomics database                               
 
@@ -58,7 +58,7 @@ This step is not needed if GATK's downloadable PONs are sufficient for the study
    
 ## Step 7: select variants                                    
 
-  - [__Step7_SelectVars.py__](Step7_SelectVars.py) runs GATK's *SelectVars* to create a final vcf file containing the final set of PONs for downstream analysis.                                   
+  - [__Step7_SelectVars.py__](Step7_SelectVars.py) runs GATK's *SelectVars* with the previously created database as input, to create a final vcf file containing the set of PONs for downstream analysis.                                   
 
 ## Step 8: variant calling in remaining or all conditions                                       
 

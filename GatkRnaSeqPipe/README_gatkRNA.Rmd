@@ -22,7 +22,7 @@ This pipeline is last in the data pre-processing group of the workflow and proce
 ## Sequencing read QC and alignment                                 
 
 
-1. [__Mono_MCI.slurm__](Mono_MCI.slurm) is the main slurm script for sequencing qc and alignment. Runs [__match_monocytes.py__](#match-monocytes).                                   
+- [__Mono_MCI.slurm__](Mono_MCI.slurm) is the main slurm script for sequencing qc and alignment. Runs [__match_monocytes.py__](#match-monocytes).                                   
     - [__match_monocytes.py__](match_monocytes.py)<a name="match-monocytes"></a> is the main python script for qc and alignment of sequencing data.               
       a. imports [__runqc.py__](runqc.py), which analyzes FastQC output and trims sequencing reads with Trimmomatic                           
     
@@ -31,6 +31,6 @@ This pipeline is last in the data pre-processing group of the workflow and proce
 
 ## Alignment QC and variant-finding                                   
 
-2. [__full_gatk.slurm__](full_gatk.slurm) is the main slurm script for qc of alignments and variant-finding. Runs [__full_gatk.py__](#full-gatk)                            
+- [__full_gatk.slurm__](full_gatk.slurm) is the main slurm script for qc of alignments and variant-finding. Runs [__full_gatk.py__](#full-gatk)                            
     - [__full_gatk.py__](full_gatk.py)<a name="full-gatk"></a> runs the GATK pipeline in parallel and imports [__gatkPipe.py__]() as a custom module which contains commands for each step of the pipeline.                            
     

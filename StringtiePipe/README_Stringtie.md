@@ -1,8 +1,41 @@
 README
 ================
 kat j
-2025-04-25
+2025-04-27
 
 - [Stringtie Pipeline](#stringtie-pipeline)
+  - [P1: alignment](#p1-alignment)
+  - [P2: stringtie round 1](#p2-stringtie-round-1)
+  - [P2: stringtie round 2](#p2-stringtie-round-2)
+  - [P2: stringtie round 3](#p2-stringtie-round-3)
 
-## Stringtie Pipeline
+# Stringtie Pipeline
+
+This is the first pipeline in the data pre-processing portion of the
+workflow. RNA sequencing reads are aligned to a reference genome, Then,
+alignments are subject to a series of Stringtie runs for assessing
+transcript levels of known and novel transcripts present in the data.
+Output includes a merged gtf file and ctab files for each sample that
+contain relational values for expression levels of transcripts.
+
+## P1: alignment
+
+- [**DGE_Pipe1_RunStar.slurm**](DGE_Pipe1_RunStar.slurm) runs RNAseq
+  fastq files through STAR for alignment with bam files as output.
+
+## P2: stringtie round 1
+
+- [**DGE_Pipe2_StringRound1.slurm**](DGE_Pipe2_StringRound1.slurm) runs
+  Stringtie on all bams from step 1
+
+## P2: stringtie round 2
+
+- [**DGE_Pipe2_StringRound2.slurm**](DGE_Pipe2_StringRound2.slurm)
+  submits [**DGE_Pipe2_Round2.py**](DGE_Pipe2_Round2.py) to the job
+  scheduler for merging gtfs from round 1.
+
+## P2: stringtie round 3
+
+- [**DGE_Pipe2_StringRound3.slurm**](DGE_Pipe2_StringRound3.slurm) runs
+  Stringtie on the samples again, this time with the merged gtf as
+  input.
