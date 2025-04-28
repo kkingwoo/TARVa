@@ -64,32 +64,28 @@ cat("</code></pre>")
 ## Workflow Overview                                                                                                             
 To implement the full TARVa workflow, the following [__data pre-processing pipelines__](#data-pre-processing-pipelines)<a name="data-pre-processing-pipes"></a> are run in the following order:                                                   
   1. [Stringtie pipeline](StringtiePipe/) ([README](StringtiePipe/README_Stringtie.md))                                    
-    Stringtie receives STAR RNA sequencing alignment bam files as input and creates transcript expression level files (.ctab) and a gtf file containing nucleotide positions, transcript features, etc. of each transcript identified in the dataset.                                             
+  Stringtie receives STAR RNA sequencing alignment bam files as input and creates transcript expression level files (.ctab) and a gtf file containing nucleotide   positions, transcript features, etc. of each transcript identified in the dataset.                                             
 
   2. [GATK WGS](GatkWGSeqPipe/) ([README](GatkWGSeqPipe/README_gatkWGS.md))                                       
-    A GATK pipeline for small somatic variant-finding in WGS sequencing data is implemented to provide the TARVa tool with a baseline set of somatic genomic variants (vcf as output) for each sample. WGS data only for samples which also have RNAseq data available is used in this step.                                                                               
+  A GATK pipeline for small somatic variant-finding in WGS sequencing data is implemented to provide the TARVa tool with a baseline set of somatic genomic        variants (vcf as output) for each sample. WGS data only for samples which also have RNAseq data available is used in this step.                                                                               
 
   3. [GATK RNA](GatkRnaSeqPipe/) ([README](GatkRnaSeqPipe/README_gatkRNA.md))                                         
-    For samples with WGS data that has been processed in the previous step, RNAseq sequencing data is run through a GATK pipeline for small variant finding in RNAseq (vcf as output).                                                                     
+  For samples with WGS data that has been processed in the previous step, RNAseq sequencing data is run through a GATK pipeline for small variant finding in      RNAseq (vcf as output).                                                                     
   
 
 Output from the data pre-processing phase of the workflow can then be used as input for the [__TARVa analysis pipelines__](#tarva-analysis-pipelines)<a name="tarva-analysis-pipes"></a>, which can be executed in the following order:                                       
-
-  1. [DB Build](TARVaCreation/OriginalBuild/) ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md))                         
-    RNA variants are first parsed to filter out any genomic variants, then a database is built and populated from several data sources to store detailed information about RNA-specific modifications in the dataset. [__Figure 1__](#figure) shows the entity relationship diagram for the TARVa database.                                        
-    ![__Figure 1.__ ](tarva_db_erd.png)<a name="figure"></a>                                       
-__Figure 1.__ *ERD of TARVa database structure*. __gtf_tab__ contains information from the merged Stringtie GTF, __fasta_tab__ contains values per nucleotide position in the reference fasta file, and __sample_tab__ contains values from individual VCF files for all conditions and tissues. Yellow highlights: The reference nucleotide, alternate nucleotide, and strand information were used to determine variant call-type; Orange highlights: allele_depth, depth_reads, and length retrieved to calculate the proportion of reads modified for each instance of a variant call.                                                                             
-  
-  After the database is built and populated, analyses from the global level overview down to per-base resolution are carried out. [__Figure 2__](#fig) shows the levels of analyses. 
-    
-  ![__Figure 2.__](global_local_analysis_pipe.png)<a name="fig"></a>
-__Figure 2.__ *Global and local level analyses*. At the global level, analyses were started with calculated proportions of modified transcripts and conducted across all genes in which the proportion of modified transcripts were significantly different (P value <0.05) between different conditions or tissues, independent of variant types. Modified gene transcripts were assessed for significant differences in counts and proportions of each variant call-type at the global gene level. Local-level analyses were conducted, starting first with analysis of proportions of modified transcripts at the gene, variant-type, and position levels for genes in which the difference in proportion of modified transcripts between conditions or tissues were highly significant (P value 0<0.001).
+1. [DB Build](TARVaCreation/OriginalBuild/) ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md))                         
+RNA variants are first parsed to filter out any genomic variants, then a database is built and populated from several data sources to store detailed            information about RNA-specific modifications in the dataset. [__Figure 1__](#figure) shows the entity relationship diagram for the TARVa database.              ![__Figure 1.__ ](tarva_db_erd.png)<a name="figure"></a>                                       
+__Figure 1.__ *ERD of TARVa database structure*. __gtf_tab__ contains information from the merged Stringtie GTF, __fasta_tab__ contains values per nucleotide   position in the reference fasta file, and __sample_tab__ contains values from individual VCF files for all conditions and tissues. Yellow highlights: The       reference nucleotide, alternate nucleotide, and strand information were used to determine variant call-type; Orange highlights: allele_depth, depth_reads, and  length retrieved to calculate the proportion of reads modified for each instance of a variant call.                                                          
+After the database is built and populated, analyses from the global level overview down to per-base resolution are carried out. [__Figure 2__](#fig) shows the  levels of analyses. 
+![__Figure 2.__](global_local_analysis_pipe.png)<a name="fig"></a>
+__Figure 2.__ *Global and local level analyses*. At the global level, analyses were started with calculated proportions of modified transcripts and conducted   across all genes in which the proportion of modified transcripts were significantly different (P value <0.05) between different conditions or tissues,          independent of variant types. Modified gene transcripts were assessed for significant differences in counts and proportions of each variant call-type at the    global gene level. Local-level analyses were conducted, starting first with analysis of proportions of modified transcripts at the gene, variant-type, and      position levels for genes in which the difference in proportion of modified transcripts between conditions or tissues were highly significant (*P value*        0<0.001).
                         
   
-  2. [Analysis set 1](TARVaCreation/DownStreamDBCleanup/) ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md))                         
+2. [Analysis set 1](TARVaCreation/DownStreamDBCleanup/) ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md))                         
     Analyses of first set of data, consisting of one tissue type, two different conditions.                                                                        
     
-  3. [Analysis set 2](TARVaCreation/SecondSetBuild/) ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))                                         
+3. [Analysis set 2](TARVaCreation/SecondSetBuild/) ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))                                         
     Analyses of second set of data, consisting of a third condition for the tissue type assessed in the previous step and the three same conditions for a different tissue.                                           
     
 ## Limitations and Considerations                                                   

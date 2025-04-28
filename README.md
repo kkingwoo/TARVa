@@ -211,43 +211,40 @@ transcript identified in the dataset.
 Output from the data pre-processing phase of the workflow can then be
 used as input for the [**TARVa analysis
 pipelines**](#tarva-analysis-pipelines)<a name="tarva-analysis-pipes"></a>,
-which can be executed in the following order:
-
-1.  [DB Build](TARVaCreation/OriginalBuild/)
-    ([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md))  
-    RNA variants are first parsed to filter out any genomic variants,
-    then a database is built and populated from several data sources to
-    store detailed information about RNA-specific modifications in the
-    dataset. [**Figure 1**](#figure) shows the entity relationship
-    diagram for the TARVa database.  
-    ![**Figure 1.**](tarva_db_erd.png)<a name="figure"></a>  
-    **Figure 1.** *ERD of TARVa database structure*. **gtf_tab**
-    contains information from the merged Stringtie GTF, **fasta_tab**
-    contains values per nucleotide position in the reference fasta file,
-    and **sample_tab** contains values from individual VCF files for all
-    conditions and tissues. Yellow highlights: The reference nucleotide,
-    alternate nucleotide, and strand information were used to determine
-    variant call-type; Orange highlights: allele_depth, depth_reads, and
-    length retrieved to calculate the proportion of reads modified for
-    each instance of a variant call.
-
+which can be executed in the following order:  
+1. [DB Build](TARVaCreation/OriginalBuild/)
+([README](TARVaCreation/OriginalBuild/README_OriginalBuild.md))  
+RNA variants are first parsed to filter out any genomic variants, then a
+database is built and populated from several data sources to store
+detailed information about RNA-specific modifications in the dataset.
+[**Figure 1**](#figure) shows the entity relationship diagram for the
+TARVa database. ![**Figure
+1.**](tarva_db_erd.png)<a name="figure"></a>  
+**Figure 1.** *ERD of TARVa database structure*. **gtf_tab** contains
+information from the merged Stringtie GTF, **fasta_tab** contains values
+per nucleotide position in the reference fasta file, and **sample_tab**
+contains values from individual VCF files for all conditions and
+tissues. Yellow highlights: The reference nucleotide, alternate
+nucleotide, and strand information were used to determine variant
+call-type; Orange highlights: allele_depth, depth_reads, and length
+retrieved to calculate the proportion of reads modified for each
+instance of a variant call.  
 After the database is built and populated, analyses from the global
 level overview down to per-base resolution are carried out. [**Figure
-2**](#fig) shows the levels of analyses.
-
-![**Figure 2.**](global_local_analysis_pipe.png)<a name="fig"></a>
-**Figure 2.** *Global and local level analyses*. At the global level,
-analyses were started with calculated proportions of modified
-transcripts and conducted across all genes in which the proportion of
-modified transcripts were significantly different (P value \<0.05)
-between different conditions or tissues, independent of variant types.
-Modified gene transcripts were assessed for significant differences in
-counts and proportions of each variant call-type at the global gene
-level. Local-level analyses were conducted, starting first with analysis
-of proportions of modified transcripts at the gene, variant-type, and
+2**](#fig) shows the levels of analyses. ![**Figure
+2.**](global_local_analysis_pipe.png)<a name="fig"></a> **Figure 2.**
+*Global and local level analyses*. At the global level, analyses were
+started with calculated proportions of modified transcripts and
+conducted across all genes in which the proportion of modified
+transcripts were significantly different (P value \<0.05) between
+different conditions or tissues, independent of variant types. Modified
+gene transcripts were assessed for significant differences in counts and
+proportions of each variant call-type at the global gene level.
+Local-level analyses were conducted, starting first with analysis of
+proportions of modified transcripts at the gene, variant-type, and
 position levels for genes in which the difference in proportion of
 modified transcripts between conditions or tissues were highly
-significant (P value 0\<0.001).
+significant (*P value* 0\<0.001).
 
 2.  [Analysis set 1](TARVaCreation/DownStreamDBCleanup/)
     ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md))  
