@@ -7,7 +7,6 @@ import pandas as pd
 import numpy as np
 import math
 from scipy.stats import fisher_exact
-from dictionaries import Dictionaries
 from datetime import datetime
 from concurrent import futures
 from make_secondset_tabs import SampleTabs

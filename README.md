@@ -246,13 +246,13 @@ position levels for genes in which the difference in proportion of
 modified transcripts between conditions or tissues were highly
 significant (*P value* 0\<0.001).
 
-2.  [Analysis set 1](TARVaCreation/DownStreamDBCleanup/)
-    ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md))  
+2.  [Analysis set 1](TARVaCreation/AnalysisSet1/)
+    ([README](TARVaCreation/AnalysisSet1/README_set1_downstream.md))  
     Analyses of first set of data, consisting of one tissue type, two
     different conditions.
 
-3.  [Analysis set 2](TARVaCreation/SecondSetBuild/)
-    ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))  
+3.  [Analysis set 2](TARVaCreation/AnalysisSet2/)
+    ([README](TARVaCreation/AnalysisSet2/README_secondset_build.md))  
     Analyses of second set of data, consisting of a third condition for
     the tissue type assessed in the previous step and the three same
     conditions for a different tissue.

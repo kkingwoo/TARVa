@@ -1,0 +1,101 @@
+---
+title: "ROSMAP_Figures"
+author: "kat j"
+date: "2024-10-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r,echo=FALSE}
+library(ggplot2)
+
+condition <- as.list(c(rep("condition1",14),rep("condition2",14)))
+
+ty <- c("A-I","C-U","ins","del","A-T","A-C","C-G","C-A","G-T","G-A","G-C","T-A","T-G","T-C")
+
+types <- rep(ty,times = 2)
+
+pv <- c(0.000036019308737005405,0.000036019308737005405,0.0006284660419368321,0.42603032322737455,0.003515197211263979, 0.0019311529518564316,0.06326276753495352,0.027379427414306618,0.0016545952841971624,0.12381918196203387,0.0023659923671207135,0.2523218298877966,0.0015708344299897124,0.000029522300968432013)
+
+pva <- rep(pv,times=2) 
+
+counts <- c(5198,3054,6126,8535,611,974,797,803,841,3815,871,735,882,3393,3521,1998,4477,6871,410,711,602,580,605,2796,585,388,616,2324)
+
+all_edits <- data.frame(Condition = unlist(condition),Type = types,Count = counts,Pval = pva)
+
+all_edits$significance <- ifelse(all_edits$Pval < 0.001, "***", ifelse(all_edits$Pval < 0.01,"**", ifelse(all_edits$Pval < 0.05, "*", "")))
+
+significance_data <- all_edits[!duplicated(all_edits$Type), ]
+
+# Calculate the maximum Count for each Type to position the asterisks
+max_counts <- aggregate(Count ~ Type, data = all_edits, max)
+significance_data <- merge(significance_data, max_counts, by = "Type", suffixes = c("", "_max"))
+significance_data$y_position <- significance_data$Count_max * 1.05
+
+ggplot(all_edits,aes(x = Type,y = Count,fill = Condition)) + geom_bar(stat = "identity",position = position_dodge(width = 0.9)) + labs(title = "Edit calls",x = "Edit Type",t = "Total Count") + theme_minimal() + geom_text(data = significance_data, 
+            aes(x = Type, y = y_position, label = significance),
+            vjust = -0.5, size = 5, position = position_dodge(width = 0.9))
+
+ggsave("Total_edit_counts.png", width = 8, height = 6, dpi = 300)
+```
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Read data
+dats <- read.csv("Tissue_condition1_condition2_DAT_for_boxplot.csv",
+                 stringsAsFactors = FALSE)
+
+# define the ordering of variant types
+ty <- c("A-I","C-U","ins","del","A-T","A-C","C-G","C-A","G-T","G-A","G-C","T-A","T-G","T-C")
+dats$type <- factor(dats$type, levels = ty)
+
+# Create pvals data frame to match each condition/variant-type
+pv <- c(0.000036019308737005405, 0.000036019308737005405, 0.0006284660419368321,
+        0.42603032322737455, 0.003515197211263979, 0.0019311529518564316,
+        0.06326276753495352, 0.027379427414306618, 0.0016545952841971624,
+        0.12381918196203387, 0.0023659923671207135, 0.2523218298877966,
+        0.0015708344299897124, 0.000029522300968432013)
+pvals <- data.frame(Type = ty, Pval = pv)
+
+# Add significance labels based on p-value thresholds
+pvals$significance <- ifelse(pvals$Pval < 0.001, "***",
+                             ifelse(pvals$Pval < 0.01, "**",
+                                    ifelse(pvals$Pval < 0.05, "*", "")))
+# Remove any duplicate types if needed
+pvals <- pvals[!duplicated(pvals$Type), ]
+
+# For each type in dats, get the maximum count (to position the label)
+max_counts <- dats %>%
+  group_by(type) %>%
+  summarise(max_count = max(count, na.rm = TRUE)) %>%
+  ungroup()
+
+# Merge the significance info with the max count info
+pvals_plot <- pvals %>%
+  rename(type = Type) %>%
+  inner_join(max_counts, by = "type") %>%
+  filter(significance != "")
+
+# Create the boxplot
+ggplot(dats, aes(x = type, y = count, fill = condition)) +
+  geom_boxplot() +
+  geom_text(data = pvals_plot,
+            mapping = aes(x = type, y = max_count * 1.05, label = significance),
+            inherit.aes = FALSE,
+            vjust = 0, size = 5) +
+  theme_classic() +
+  theme(legend.position = "right", axis.line.x = element_line(color = "black"),axis.line.y = element_line(color = "black")) +
+  xlab("variant call-type") +
+  ylab("total count per sample")
+
+ggsave("raw_counts_boxplot.png")
+
+
+
+
+```
+

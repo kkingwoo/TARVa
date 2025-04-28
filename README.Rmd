@@ -82,10 +82,10 @@ After the database is built and populated, analyses from the global level overvi
 __Figure 2.__ *Global and local level analyses*. At the global level, analyses were started with calculated proportions of modified transcripts and conducted   across all genes in which the proportion of modified transcripts were significantly different (P value <0.05) between different conditions or tissues,          independent of variant types. Modified gene transcripts were assessed for significant differences in counts and proportions of each variant call-type at the    global gene level. Local-level analyses were conducted, starting first with analysis of proportions of modified transcripts at the gene, variant-type, and      position levels for genes in which the difference in proportion of modified transcripts between conditions or tissues were highly significant (*P value*        0<0.001).
                         
   
-2. [Analysis set 1](TARVaCreation/DownStreamDBCleanup/) ([README](TARVaCreation/DownStreamDBCleanup/README_set1_downstream.md))                         
+2. [Analysis set 1](TARVaCreation/AnalysisSet1/) ([README](TARVaCreation/AnalysisSet1/README_set1_downstream.md))                         
     Analyses of first set of data, consisting of one tissue type, two different conditions.                                                                        
     
-3. [Analysis set 2](TARVaCreation/SecondSetBuild/) ([README](TARVaCreation/SecondSetBuild/README_secondset_build.md))                                         
+3. [Analysis set 2](TARVaCreation/AnalysisSet2/) ([README](TARVaCreation/AnalysisSet2/README_secondset_build.md))                                         
     Analyses of second set of data, consisting of a third condition for the tissue type assessed in the previous step and the three same conditions for a different tissue.                                           
     
 ## Limitations and Considerations                                                   

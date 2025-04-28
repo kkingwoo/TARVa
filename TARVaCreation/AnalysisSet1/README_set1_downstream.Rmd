@@ -26,7 +26,8 @@ This analysis step is part of the TARVa analysis pipeline, and is run after the 
 ## 2. conduct global and local-level analyses                                       
 - [__Downstream.slurm__](Downstream.slurm) submits [__downstream_analysis.py__](downstream_analysis.py) to carry out the remainder of global and local-level analyses.                               
 
-
+## 3. Plot data                                                   
+  [__Figures.Rmd__](Figures.Rmd) is run to create either a bar graph or boxplot of the global variant-type distributions for each condition in this Analysis set.
 
 
 

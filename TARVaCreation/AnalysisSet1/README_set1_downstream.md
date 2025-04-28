@@ -8,6 +8,7 @@ kat j
     positions](#1-global-level-distribution-assignment-of-modified-positions)
   - [2. conduct global and local-level
     analyses](#2-conduct-global-and-local-level-analyses)
+  - [3. Plot data](#3-plot-data)
 
 # Analysis set 1
 
@@ -34,3 +35,9 @@ and local analyses are carried out in this section.
 - [**Downstream.slurm**](Downstream.slurm) submits
   [**downstream_analysis.py**](downstream_analysis.py) to carry out the
   remainder of global and local-level analyses.
+
+## 3. Plot data
+
+[**Figures.Rmd**](Figures.Rmd) is run to create either a bar graph or
+boxplot of the global variant-type distributions for each condition in
+this Analysis set.
