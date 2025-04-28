@@ -75,26 +75,29 @@ be utilized for downstream analyses.
 
     $$
       ppw = \frac{1}{len}
-      $$  
-    .
+      $$
 
     2.  Variant Proportions  
         For each position along the transcript, for each sample in each
         condition where there is a variant call, calculate the
         proportion (**prop**) based on allele depth:  
-        a. Proportion for the reference nucleotide (**propref**)  
+
+    <!-- -->
+
+    1.  Proportion for the reference nucleotide (**propref**)  
         $$                                  
-            propref = \left( \frac{ad_{ref}}{dp} \right) \times ppw                                   
-            $$  
-        b. Proportion for the first alternate nucleotide(**propa1**)  
+          propref = \left( \frac{ad_{ref}}{dp} \right) \times ppw                                   
+          $$  
+    2.  Proportion for the first alternate nucleotide(**propa1**)  
         $$                                        
-            propa1 = \left( \frac{ad_{a1}}{dp} \right) \times ppw                                       
-            $$  
+          propa1 = \left( \frac{ad_{a1}}{dp} \right) \times ppw                                       
+          $$  
         where:  
-        - **ad₍ref₎** = Allele depth for the reference nucleotide  
-        - **ad₍a1₎** = Allele depth for the first alternate nucleotide  
-        - **dp** = Total depth of reads at the position  
-        - **ppw** = Per-position weight
+
+    - **ad₍ref₎** = Allele depth for the reference nucleotide  
+    - **ad₍a1₎** = Allele depth for the first alternate nucleotide  
+    - **dp** = Total depth of reads at the position  
+    - **ppw** = Per-position weight
 - Notes
   - The weighted proportions (**propref** and **propa1**) account for
     both the allele frequency and the transcript length.  
