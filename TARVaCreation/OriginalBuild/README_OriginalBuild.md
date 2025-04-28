@@ -1,7 +1,7 @@
 README
 ================
 kat j
-2025-04-27
+2025-04-28
 
 - [Building the TARVa database](#building-the-tarva-database)
   - [1. identify rna-specific
@@ -51,4 +51,52 @@ be utilized for downstream analyses.
     step. The approach used here scales the information for all samples
     into the space of n=1 transcript (and thus n=1 sequencing read) from
     which the level of editing per gene, per sample, is derived. The
-    equation and variables are described below:
+    equation and variables are described below:  
+
+  - Definitions
+
+    - **ad** = Allele depth (number of reads supporting the variant
+      call)
+
+    - **ref** = Reference nucleotide
+
+    - **a1** = First alternate nucleotide
+
+    - **dp** = Depth of reads (total number of reads mapping to the
+      position)
+
+    - **len** = Generic transcript length
+
+  - Calculations
+
+    1.  Per-Position Weight (ppw)  
+        For each transcript, the per-position weight (**ppw**), where
+        **len** is the length of the transcript, is calculated as:
+
+    $$
+      ppw = \frac{1}{len}
+      $$  
+    .
+
+    2.  Variant Proportions  
+        For each position along the transcript, for each sample in each
+        condition where there is a variant call, calculate the
+        proportion (**prop**) based on allele depth:  
+        a. Proportion for the reference nucleotide (**propref**)  
+        $$                                  
+            propref = \left( \frac{ad_{ref}}{dp} \right) \times ppw                                   
+            $$  
+        b. Proportion for the first alternate nucleotide(**propa1**)  
+        $$                                        
+            propa1 = \left( \frac{ad_{a1}}{dp} \right) \times ppw                                       
+            $$  
+        where:  
+        - **ad₍ref₎** = Allele depth for the reference nucleotide  
+        - **ad₍a1₎** = Allele depth for the first alternate nucleotide  
+        - **dp** = Total depth of reads at the position  
+        - **ppw** = Per-position weight
+- Notes
+  - The weighted proportions (**propref** and **propa1**) account for
+    both the allele frequency and the transcript length.  
+  - These calculations are performed for each sample, for each
+    condition, at each position with a variant call.

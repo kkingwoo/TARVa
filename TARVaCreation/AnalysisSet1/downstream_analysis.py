@@ -6,7 +6,6 @@ import pandas as pd
 from scipy.stats import mannwhitneyu
 from collections import Counter
 from scipy.stats import ttest_ind
-from position_groups import PosGroups
 
 def get_sample_info(db):
     keys_list,vals_list = ['braak','cerad','apoe','sex'],[['V-VI','III-IV','I-II','None'],['1-2','3-4'],['E4E4','E3E4','E3E3','E2E4','E2E3','E2E2','None'],['m','f']]

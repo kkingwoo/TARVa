@@ -29,8 +29,50 @@ After data pre-processing pipelines are complete, information from vcfs, fasta, 
   
   - [__make_sample_tabs.py__](make_sample_tabs.py) which organizes data related to each sample, for populating the __sample_tab__ table in the database.                               
   - [__analyze_lens.py__](analyze_lens.py) creates a transcript length for each gene and then for each modification, calculates proportion of transcripts for the gene that have that modification.    Due to the transient nature of RNA, the large number of possible transcripts for some genes, the often-drastic length differences among the transcripts, and the plausibility of differential transcript usage and/or gene expression levels between conditions, a normalization step was necessary. The type of information derived from the current pipeline does not provide a clear-cut answer on which specific transcript(s) the variant calls belong to. Thus, for each gene, the minimum start and maximum end of all (start,end) positions for all possible transcripts of that gene were used to assign a single transcript length, per gene, for application in the normalization step. The approach used here scales the information for all samples into the space of n=1 transcript (and thus n=1 sequencing read) from which the level of editing per gene, per sample, is derived.  The equation and variables are described below:                               
-  
-  
+  - Definitions                                                             
+    
+    - **ad** = Allele depth (number of reads supporting the variant call)                                             
+        
+    - **ref** = Reference nucleotide                                         
+        
+    - **a1** = First alternate nucleotide                                                             
+        
+    - **dp** = Depth of reads (total number of reads mapping to the position)                                               
+        
+    - **len** = Generic transcript length                                   
+
+  - Calculations                                         
+    
+    1. Per-Position Weight (ppw)                                        
+      For each transcript, the per-position weight (**ppw**), where **len** is the length of the transcript, is calculated as:                              
+
+      $$
+      ppw = \frac{1}{len}
+      $$                                                    
+        .                                                            
+      2. Variant Proportions                                        
+        For each position along the transcript, for each sample in each condition where there is a variant call, calculate the proportion (**prop**) based on            allele depth:                                          
+        a. Proportion for the reference nucleotide (**propref**)                                       
+        $$                                  
+        propref = \left( \frac{ad_{ref}}{dp} \right) \times ppw                                   
+        $$                                                  
+        b. Proportion for the first alternate nucleotide(**propa1**)                                                                                    
+        $$                                        
+        propa1 = \left( \frac{ad_{a1}}{dp} \right) \times ppw                                       
+        $$                                                
+        where:                                        
+        - **ad₍ref₎** = Allele depth for the reference nucleotide                                           
+        - **ad₍a1₎** = Allele depth for the first alternate nucleotide                                    
+        - **dp** = Total depth of reads at the position                                       
+        - **ppw** = Per-position weight                                         
+        
+        
+- Notes                                       
+  - The weighted proportions (**propref** and **propa1**) account for both the allele frequency and the transcript length.                                         
+  - These calculations are performed for each sample, for each condition, at each position with a variant call.        
+    
+
+
 
 
 

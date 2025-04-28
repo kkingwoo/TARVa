@@ -14,5 +14,19 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Analysis set 1                                   
-This analysis step is part of the TARVa analysis pipeline. 
+# Analysis set 1                                   
+This analysis step is part of the TARVa analysis pipeline, and is run after the database has been built.  Operations such as accessing additional information about the genes, needed for conducting the global and local analyses are carried out in this section.                         
+
+## 1. global level distribution assignment of modified positions                                                                                                             
+- [__AnET.slurm__](AnET.slurm) submits [__anet.py__](anet.py) to the job scheduler to carry out operations such as retrieving additional gene information and global-level distribution assignment of genes.                                          
+
+  - [__type_by_gene.py__](type_by_gene.py) is imported to anet.py as a custom module. This module carries out assessment and assignment of variant call-types in a strand-aware fashion, and analysis and assignment of modified positions to their respective global-level distribution subsets for each gene: (*common*=commonly modified and *unique*=uniquely modified)                                                   
+  
+  
+## 2. conduct global and local-level analyses                                       
+- [__Downstream.slurm__](Downstream.slurm) submits [__downstream_analysis.py__](downstream_analysis.py) to carry out the remainder of global and local-level analyses.                               
+
+
+
+
+
