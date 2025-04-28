@@ -1,13 +1,13 @@
 README
 ================
 kat j
-2025-04-27
+2025-04-28
 
 - [GATK RNAseq Pipeline](#gatk-rnaseq-pipeline)
-  - [Sequencing read QC and
-    alignment](#sequencing-read-qc-and-alignment)
-  - [Alignment QC and
-    variant-finding](#alignment-qc-and-variant-finding)
+  - [1. Sequencing read QC and
+    alignment](#1-sequencing-read-qc-and-alignment)
+  - [2. Alignment QC and
+    variant-finding](#2-alignment-qc-and-variant-finding)
 
 # GATK RNAseq Pipeline
 
@@ -15,7 +15,7 @@ This pipeline is last in the data pre-processing group of the workflow
 and processes RNAseq data to create variant call format (vcf) files. The
 following steps are executed for the pipeline:
 
-## Sequencing read QC and alignment
+## 1. Sequencing read QC and alignment
 
 - [**Mono_MCI.slurm**](Mono_MCI.slurm) is the main slurm script for
   sequencing qc and alignment. Runs
@@ -30,7 +30,7 @@ following steps are executed for the pipeline:
         parallel for samples and imports [**star_run.py**](#star-run) as
         a custom module which executes STAR alignment for each sample.
 
-## Alignment QC and variant-finding
+## 2. Alignment QC and variant-finding
 
 - [**full_gatk.slurm**](full_gatk.slurm) is the main slurm script for qc
   of alignments and variant-finding. Runs [**full_gatk.py**](#full-gatk)
