@@ -48,7 +48,7 @@ For the [__TARVa analysis pipelines__](#tarva-analysis-pipes)<a name="tarva-anal
     -- *statsmodels*                               
     -- *vcf*                                               
                           
-## Directory Structure                                             
+## Directory Structure   (__#### CHANGE TO REFLECT STRUCTURE OF FILES AND PATHS ####__)                                          
 
 <details>
 <summary><strong>📂 Project Directory Tree (click to expand)</strong></summary>

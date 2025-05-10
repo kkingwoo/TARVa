@@ -1,14 +1,16 @@
 README
 ================
 kat j
-2025-04-28
+2025-05-01
 
 - [**T**ranscript **A**nalysis of **R**NA **Va**riants
   (TARVa)](#transcript-analysis-of-rna-variants-tarva)
   - [Project Overview](#project-overview)
   - [Tools, Environments and
     Dependencies](#tools-environments-and-dependencies)
-  - [Directory Structure](#directory-structure)
+  - [Directory Structure (**\#### CHANGE TO REFLECT STRUCTURE OF FILES
+    AND PATHS
+    \####**)](#directory-structure--change-to-reflect-structure-of-files-and-paths-)
   - [Workflow Overview](#workflow-overview)
   - [Limitations and Considerations](#limitations-and-considerations)
   - [License](#license)
@@ -73,7 +75,7 @@ pipelines**](#tarva-analysis-pipes)<a name="tarva-analysis-pipelines"></a>
   – *statsmodels*  
   – *vcf*
 
-## Directory Structure
+## Directory Structure (**\#### CHANGE TO REFLECT STRUCTURE OF FILES AND PATHS \####**)
 
 <details>
 <summary>
@@ -81,12 +83,12 @@ pipelines**](#tarva-analysis-pipes)<a name="tarva-analysis-pipelines"></a>
 </summary>
 <pre><code>.
 ├── GatkRnaSeqPipe
+│   ├── Mono_MCI.slurm
 │   ├── README_gatkRNA.Rmd
 │   ├── README_gatkRNA.md
 │   ├── README_gatkRNA_files
 │   │   └── figure-gfm
 │   │       └── pressure-1.png
-│   ├── STAR_array.slurm
 │   ├── full_gatk.py
 │   ├── full_gatk.slurm
 │   ├── gatkPipe.py
@@ -138,46 +140,47 @@ pipelines**](#tarva-analysis-pipes)<a name="tarva-analysis-pipelines"></a>
 ├── TARVa
 │   └── LICENSE
 ├── TARVaCreation
-│   ├── DownStreamDBCleanup
+│   ├── AnalysisSet1
 │   │   ├── AnET.slurm
+│   │   ├── Downstream.slurm
+│   │   ├── Figures.Rmd
 │   │   ├── README_set1_downstream.Rmd
 │   │   ├── README_set1_downstream.md
-│   │   ├── adjust_lists.py
 │   │   ├── anet.py
-│   │   ├── parse_vep.py
-│   │   ├── sep_call_type.py
+│   │   ├── downstream_analysis.py
 │   │   └── type_by_gene.py
-│   ├── OriginalBuild
-│   │   ├── BuildTarvaDBs.py
-│   │   ├── README_OriginalBuild.Rmd
-│   │   ├── README_OriginalBuild.md
-│   │   ├── README_OriginalBuild_files
-│   │   │   └── figure-gfm
-│   │   │       └── pressure-1.png
-│   │   ├── analyze_lens.py
-│   │   ├── build.slurm
-│   │   ├── checkRNA_againstWGS.py
-│   │   ├── each_gene.py
-│   │   ├── make_sample_tabs.py
-│   │   ├── proc_pos.py
-│   │   └── raw_counts.py
-│   └── SecondSetBuild
-│       ├── Build_SecondSet.py
-│       ├── README_secondset_build.Rmd
-│       ├── README_secondset_build.md
-│       ├── Rel_Abu.slurm
-│       ├── build2.slurm
-│       ├── fpkm_within_condition_analysis.py
-│       ├── get_second_set_counts.py
-│       ├── make_secondset_tabs.py
-│       ├── read_mstrg_tab.py
-│       └── tpm_analysis.py
-├── bio_qc.yml
-├── bio_qc_channels_dependencies.txt
+│   ├── AnalysisSet2
+│   │   ├── Build_SecondSet.py
+│   │   ├── README_secondset_build.Rmd
+│   │   ├── README_secondset_build.md
+│   │   ├── Rel_Abu.slurm
+│   │   ├── build2.slurm
+│   │   ├── fpkm_within_condition_analysis.py
+│   │   ├── get_second_set_counts.py
+│   │   ├── make_secondset_tabs.py
+│   │   ├── read_mstrg_tab.py
+│   │   └── tpm_analysis.py
+│   └── OriginalBuild
+│       ├── BuildTarvaDBs.py
+│       ├── README_OriginalBuild.Rmd
+│       ├── README_OriginalBuild.md
+│       ├── README_OriginalBuild_files
+│       │   └── figure-gfm
+│       │       └── pressure-1.png
+│       ├── analyze_lens.py
+│       ├── build.slurm
+│       ├── checkRNA_againstWGS.py
+│       ├── dictionaries.py
+│       └── make_sample_tabs.py
+├── conda_env
+│   ├── bio_qc.yml
+│   ├── bio_qc_channels_dependencies.txt
+│   ├── tarva.yml
+│   └── tarva_channels_dependencies.txt
+├── global_local_analysis_pipe.png
 ├── structure.txt
-├── tarva.yml
-└── tarva_channels_dependencies.txt
-&#10;17 directories, 81 files
+└── tarva_db_erd.png
+&#10;18 directories, 81 files
 </code></pre>
 </details>
 
