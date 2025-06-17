@@ -1,7 +1,7 @@
 README
 ================
 kat j
-2025-05-12
+2025-06-17
 
 - [**T**ranscript **A**nalysis of **R**NA **Va**riants
   (TARVa)](#transcript-analysis-of-rna-variants-tarva)
@@ -29,7 +29,8 @@ per-position comparisons across tissue types and conditions. The
 workflow is set up for use with paired-sample raw RNAseq and whole
 genome sequencing files (fastq) from more than one condition and/or
 tissue, and covers three data preprocessing pipelines in addition to the
-main TARVa analysis pipeline.
+main TARVa analysis pipeline. **NOTE:** Parts or all of the workflow,
+algorithm(s), and other components of this project are patent pending.
 
 ## Tools, Environments and Dependencies
 
