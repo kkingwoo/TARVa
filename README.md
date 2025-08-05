@@ -3,7 +3,7 @@ README
 kat j
 2025-06-17
 
-- [**T**ranscript **A**nalysis of **R**NA **Va**riants
+- [**T**ranscriptomic **A**nalysis of **R**NA **Va**riants
   (TARVa)](#transcript-analysis-of-rna-variants-tarva)
   - [Project Overview](#project-overview)
   - [Tools, Environments and
@@ -15,7 +15,7 @@ kat j
   - [Limitations and Considerations](#limitations-and-considerations)
   - [License](#license)
 
-# **T**ranscript **A**nalysis of **R**NA **Va**riants (TARVa)
+# **T**ranscriptomic **A**nalysis of **R**NA **Va**riants (TARVa)
 
 ## Project Overview
 
