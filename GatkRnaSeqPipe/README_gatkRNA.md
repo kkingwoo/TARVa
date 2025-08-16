@@ -1,7 +1,7 @@
 README
 ================
 kat j
-2025-04-28
+2025-08-16
 
 - [GATK RNAseq Pipeline](#gatk-rnaseq-pipeline)
   - [1. Sequencing read QC and
