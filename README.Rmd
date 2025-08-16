@@ -13,7 +13,7 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-# **T**ranscript **A**nalysis of **R**NA **Va**riants (TARVa)                                                               
+# **T**ranscriptomic **A**nalysis of **R**NA **Va**riants (TARVa)                                                               
 ## Project Overview                                   
   [**TARVa**](#transcript-analysis-of-rna-variants-tarva) is a tool which enables analysis of epitranscriptomic modifications from raw RNA sequencing data, taking  into consideration both depth of read and length of transcript, and scans for all variant call-types in a strand-aware fashion. Starting with a global overview, the pipeline moves through non-hierarchical stratifications of the data, ending with local, per-position comparisons across tissue types and conditions. The  workflow is set up for use with paired-sample raw RNAseq and whole genome sequencing files (fastq) from more than one condition and/or tissue, and covers three data preprocessing pipelines in addition to the main TARVa analysis pipeline.      __NOTE:__ Parts or all of the workflow, algorithm(s), and other components of this project are patent pending.                                                    
 
