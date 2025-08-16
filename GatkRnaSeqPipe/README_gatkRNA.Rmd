@@ -1,0 +1,36 @@
+---
+title: "README"
+author: "kat j"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    toc: true   
+    toc_depth: 2
+    number_sections: false
+    preserve_yaml: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# GATK RNAseq Pipeline                                
+
+
+This pipeline is last in the data pre-processing group of the workflow and processes RNAseq data to create variant call format (vcf) files. The following steps are executed for the pipeline:                            
+
+## 1. Sequencing read QC and alignment                                 
+
+
+- [__Mono_MCI.slurm__](Mono_MCI.slurm) is the main slurm script for sequencing qc and alignment. Runs [__match_monocytes.py__](#match-monocytes).                                   
+    - [__match_monocytes.py__](match_monocytes.py)<a name="match-monocytes"></a> is the main python script for qc and alignment of sequencing data.               
+      a. imports [__runqc.py__](runqc.py), which analyzes FastQC output and trims sequencing reads with Trimmomatic                           
+    
+      b. creates and submits a slurm script to the job scheduler, which runs [__star.py__](#star), the main script that runs STAR in parallel for samples and imports [__star_run.py__](#star-run) as a custom module which executes STAR alignment for each sample.                              
+
+
+## 2. Alignment QC and variant-finding                                   
+
+- [__full_gatk.slurm__](full_gatk.slurm) is the main slurm script for qc of alignments and variant-finding. Runs [__full_gatk.py__](#full-gatk)                            
+    - [__full_gatk.py__](full_gatk.py)<a name="full-gatk"></a> runs the GATK pipeline in parallel and imports [__gatkPipe.py__]() as a custom module which contains commands for each step of the pipeline.                            
+    
