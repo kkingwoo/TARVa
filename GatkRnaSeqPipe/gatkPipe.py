@@ -155,7 +155,7 @@ class GATKPipe:
     @staticmethod
     def filter_vars(invcf,di,rid,ref):
         filt_vcf = f"{di}/{rid}_filtered.vcf"
-        comm14 = f"gatk VariantFiltration -R {ref} -V {invcf} -O {filt_vcf} --filter-name qual_filt --filter-expression \"QUAL < 25.0\" --filter-name qual_depth_filt --filter-expression \"QD < 10.0\" --filter-name depth_filt --filter-expression \"DP < 5\""
+        comm14 = f"gatk VariantFiltration -R {ref} -V {invcf} -O {filt_vcf} --filter-name qual_filt --filter-expression \"QUAL < 25.0\" --filter-name qual_depth_filt --filter-expression \"QD < 10.0\" --filter-name depth_filt --filter-expression \"DP < 20\""
         subprocess.run(comm14,check=True,shell=True)
         return filt_vcf
 
