@@ -18,6 +18,7 @@ module load anaconda3
 source activate tarva
 
 DB_PATH='TARVa.db'
+METADAT='metada.csv'
 
 
-python anet.py $DB_PATH  
+python anet.py $DB_PATH $METADAT 

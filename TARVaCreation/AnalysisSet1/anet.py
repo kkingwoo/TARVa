@@ -39,7 +39,7 @@ from __future__ import annotations
 import os
 import sys
 
-import sqlite3 as sql
+import sqlte3 as sql
 import pandas as pd
 
 from scipy.stats import mannwhitneyu
@@ -111,7 +111,7 @@ def benjamini_hochberg(pvalues: list[float]) -> list[float]:
     return adjusted
 
 
-def _cohort_sizes(conn: sqlite3.Connection, n_ad: Optional[int], n_control: Optional[int]) -> tuple[int, int]:
+def _cohort_sizes(conn: sql.Connection, n_ad: Optional[int], n_control: Optional[int]) -> tuple[int, int]:
     if n_ad is None:
         n_ad = conn.execute("SELECT COUNT(DISTINCT rid) FROM sample_tab WHERE condition='AD'").fetchone()[0]
     if n_control is None:
@@ -150,7 +150,7 @@ where {sample} which will be parsed from metadata file to make each [unique] vcf
     NOT the number of samples. Tracked separately from the per-sample
     sums used in the actual test.
     """
-    conn = sqlite3.connect(db_path)
+    conn = sql.connect(db_path)
     n_ad, n_control = _cohort_sizes(conn, n_ad, n_control)
 
     rows = conn.execute(
@@ -221,7 +221,7 @@ def process_single_gene(args):
     """
     db_path, gene_id = args
 
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn = sql.connect(db_path, check_same_thread=False)
     db = conn.cursor()
     s_tab = 'sample_tab'
 
@@ -288,25 +288,13 @@ def process_single_gene(args):
         ad_unique_perc = float(ad_unique / unique_sums)
         control_unique_perc = float(control_unique / unique_sums)
 
-    # 5-group classification logic from type_by_gene.py
-    if (ad_unique + ad_common) >= 1 and (control_unique + control_common) == 0:
-        raw_group = 'AD_only'
-    elif (control_unique + control_common) >= 1 and (ad_unique + ad_common) == 0:
-        raw_group = 'Control_only'
-    elif (ad_unique_perc + ad_common_perc) >= float(0.75):
-        raw_group = 'Primarily_AD'
+    # 3-group classification of genes: large majority in set1 OR large majority in set2 OR split 25% - 75% in both sets
+    if (ad_unique_perc + ad_common_perc) >= float(0.75):
+        raw_group = 'AD_enriched'
     elif (control_unique_perc + control_common_perc) >= float(0.75):
-        raw_group = 'Primarily_Control'
+        raw_group = 'Control_enriched'
     else:
-        raw_group = 'Both'
-
-    # Map to requested 3 groups: AD-enriched, CN-enriched, Shared
-    if raw_group in ['AD_only', 'Primarily_AD']:
-        final_group = 'AD-enriched'
-    elif raw_group in ['Control_only', 'Primarily_Control']:
-        final_group = 'CN-enriched'
-    else:
-        final_group = 'Shared'
+        raw_group = 'Shared'
 
     return gene_id, final_group
 
@@ -329,7 +317,7 @@ def classify_and_annotate(
     df['ensgid'] = df[gene_col].apply(lambda x: str(x).split('_')[0] if pd.notnull(x) else x)
 
     # Gene name mapping from database, if available
-    conn = sqlite3.connect(db_path)
+    conn = sql.connect(db_path)
     c = conn.cursor()
     gene_name_map = {}
     try:
@@ -341,7 +329,7 @@ def classify_and_annotate(
         for ref_base, gname in c.execute(name_query).fetchall():
             gene_name_map[str(ref_base).split('_')[0]] = gname
             gene_name_map[str(ref_base)] = gname
-    except sqlite3.OperationalError:
+    except sql.OperationalError:
         pass
     conn.close()
 
@@ -393,7 +381,7 @@ def global_calltype_test(
          U statistic.
       5. Benjamini-Hochberg FDR correction across all tested call-types.
     """
-    conn = sqlite3.connect(db_path)
+    conn = sql.connect(db_path)
     n_ad, n_control = _cohort_sizes(conn, n_ad, n_control)
 
     if not gene_ids:
@@ -481,7 +469,7 @@ def export_sample_site_counts(
             df_empty.to_csv(save_csv, index=False)
         return df_empty
 
-    conn = sqlite3.connect(db_path)
+    conn = sql.connect(db_path)
     placeholders = ",".join("?" * len(gene_ids))
 
     rows = conn.execute(
@@ -525,7 +513,8 @@ if __name__ == "__main__":
     print(f"within_gene_test: {len(within)} genes tested")
 
     annotated = classify_and_annotate(within, db_path, gene_col='gene', max_workers=32)
-    annotated.to_csv("within_genes_set.csv", index=False)
+    gene_set_path = "TARVa_global_gene_set.csv"
+    annotated.to_csv(gene_set_path, index=False)
     sig_genes = annotated['gene'].tolist()
     print(f"classify_and_annotate: {len(sig_genes)} genes significant at raw p<=0.05, "
           f"classified and annotated -> within_genes_set.csv")
