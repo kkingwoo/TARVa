@@ -67,7 +67,11 @@ be utilized for downstream analyses.
 
     - **len** = Generic transcript length
 
-  - Calculations
+- Notes
+  - The normalized proportions account for read depth and are used 
+    for within-gene, between conditions analysis.  
+
+- Calculations
 
     1.  Per-Position Weight (ppw)  
         For each transcript, the per-position weight (**ppw**), where
@@ -100,6 +104,7 @@ be utilized for downstream analyses.
     - **ppw** = Per-position weight
 - Notes
   - The weighted proportions (**propref** and **propa1**) account for
-    both the allele frequency and the transcript length.  
+    read depth and transcript length, and are used for between gene comparisons.  
   - These calculations are performed for each sample, for each
     condition, at each position with a variant call.
+ 

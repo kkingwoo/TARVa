@@ -116,7 +116,7 @@ class EditTypes:
                 else:
                     a1type = f"{ro}-{ao}" if len(ref) == len(alt1) else 'unkown'        
 
-            
+           ## Remove hgvs throughout script... not relevant to study 
             ty = type_list.index(a1type)
             enst = tid.replace('_','.')
             if ty in range(0,14):

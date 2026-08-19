@@ -1,0 +1,140 @@
+---
+title: "TARVa_26_08_17"
+author: "Kat J"
+date: "2026-08-17"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r plot_variant_sites, fig.width=12, fig.height=7, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+# 1. Load data files
+counts_df <- read_csv("D://git_hub/TARVa/TARVaCreation/AnalysisSet1/sample_site_counts_per_variant.csv")
+pval_df <- read_csv("D://git_hub/TARVa/TARVaCreation/AnalysisSet1/global_set_calltype_pvalues.csv")
+
+# Replace "Control" with "CN" and update edit type labels (A-I -> A-G, C-U -> C-T)
+counts_df <- counts_df %>%
+  mutate(
+    condition = if_else(condition == "Control", "CN", condition),
+    variant_call = case_when(
+      variant_call == "A-I" ~ "A-G",
+      variant_call == "C-U" ~ "C-T",
+      TRUE                  ~ variant_call
+    )
+  )
+
+pval_df <- pval_df %>%
+  mutate(
+    variant_call_type = case_when(
+      variant_call_type == "A-I" ~ "A-G",
+      variant_call_type == "C-U" ~ "C-T",
+      TRUE                       ~ variant_call_type
+    )
+  )
+
+# 2. Assign significance stars based on adjusted p-values
+pval_df <- pval_df %>%
+  mutate(
+    sig_label = case_when(
+      adj_pvalue < 0.001 ~ "***",
+      adj_pvalue < 0.01  ~ "**",
+      adj_pvalue < 0.05  ~ "*"
+    ),
+    effect_label = sprintf("r = %.2f", rbc)
+  )
+
+# 3. Define custom alphabetical factor order: Nucleotides first, then del, then ins
+nuc_types <- sort(setdiff(unique(counts_df$variant_call), c("del", "ins")))
+custom_order <- c(nuc_types, "del", "ins")
+
+# Apply factor levels to counts_df
+counts_df <- counts_df %>%
+  filter(variant_call %in% custom_order) %>%
+  mutate(variant_call = factor(variant_call, levels = custom_order))
+
+# Calculate y-axis positions for significance annotations
+plot_range <- max(counts_df$`total sites`, na.rm = TRUE) - min(counts_df$`total sites`, na.rm = TRUE)
+
+y_max_df <- counts_df %>%
+  group_by(variant_call) %>%
+  summarize(y_top = max(`total sites`, na.rm = TRUE), .groups = "drop") %>%
+  inner_join(pval_df %>% rename(variant_call = variant_call_type), by = "variant_call") %>%
+  mutate(
+    y_pos_sig = y_top + plot_range * 0.10,
+    y_pos_effect = y_top + plot_range * 0.03
+  )
+
+# 4. Colorblind-friendly Palette (Okabe-Ito: CN = Blue, AD = Vermillion)
+cb_palette <- c("CN" = "#56B4E9", "AD" = "#D55E00")
+
+# 5. Generate Plot
+p <- ggplot(counts_df, aes(x = variant_call, y = `total sites`, fill = condition)) +
+  # Boxplots
+  geom_boxplot(
+    outlier.shape = NA, 
+    alpha = 0.65, 
+    color = "black", 
+    width = 0.7, 
+    position = position_dodge(width = 0.8)
+  ) +
+  # Overlay scatter points (Darker points with jitter to stand out clearly over boxplots)
+  geom_point(
+    aes(color = condition),
+    position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8),
+    size = 1.8, 
+    alpha = 0.9, 
+    stroke = 0.3
+  ) +
+  # Significance annotations (*, **, ***)
+  geom_text(
+    data = y_max_df,
+    aes(x = variant_call, y = y_pos_sig, label = sig_label),
+    inherit.aes = FALSE,
+    size = 6.5,
+    fontface = "bold"
+  ) +
+  # Effect size annotations (rbc) shown at every x-position regardless of significance
+  geom_text(
+    data = y_max_df,
+    aes(x = variant_call, y = y_pos_effect, label = effect_label),
+    inherit.aes = FALSE,
+    size = 3.5,
+    fontface = "italic",
+    color = "gray30"
+  ) +
+  # Custom Colors
+  scale_fill_manual(values = cb_palette) +
+  scale_color_manual(values = c("CN" = "#0072B2", "AD" = "#990000")) +
+  # Formatting & Labels
+  labs(
+    x = "Variant Call Type",
+    y = "Total Sites (per Sample)",
+    fill = "Condition"
+  ) +
+  guides(color = "none") + # Hide duplicate color legend for scatter points
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 10),
+    axis.text.x = element_text(face = "bold", color = "black"),
+    legend.position = "top",
+    legend.title = element_text(face = "bold")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.18)))
+
+
+
+# Save plot directly to high-res PNG
+ggsave(
+  filename = "D://FunkLab/Writing/ROSMAP_2026/ROSMAP_FrontiersGenetics_NeurogenomicsCall/Fig3_boxplot_260818.tiff",
+  plot = p,
+  width = 12,
+  height = 7,
+  dpi = 300,
+  units = "in"
+)
+```

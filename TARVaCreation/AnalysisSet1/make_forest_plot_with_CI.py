@@ -40,17 +40,19 @@ for _, row in df_cn.iterrows():
 plot_sequence = plot_sequence[::-1]
 
 # 4. Multi-Panel Layout
-fig = plt.figure(figsize=(12, 10))
-ax_labels = fig.add_axes([0.05, 0.1, 0.2, 0.8])
-ax_pvals = fig.add_axes([0.28, 0.1, 0.12, 0.8])
-ax_plot = fig.add_axes([0.45, 0.1, 0.48, 0.8])
+fig = plt.figure(figsize=(14, 10))
+ax_labels = fig.add_axes([0.05, 0.1, 0.18, 0.8])
+ax_pvals  = fig.add_axes([0.24, 0.1, 0.10, 0.8])
+ax_ci     = fig.add_axes([0.35, 0.1, 0.14, 0.8])  # Added text panel for 95% CI values
+ax_plot   = fig.add_axes([0.51, 0.1, 0.44, 0.8])
 
-for ax in [ax_labels, ax_pvals]:
+for ax in [ax_labels, ax_pvals, ax_ci]:
     ax.axis('off')
     ax.set_ylim(-1, len(plot_sequence))
 
 ax_labels.text(0, len(plot_sequence), "Variant Call-type", weight='bold', va='bottom', fontsize=13)
 ax_pvals.text(0.5, len(plot_sequence), "P-value", weight='bold', va='bottom', ha='center', fontsize=13)
+ax_ci.text(0.5, len(plot_sequence), "95% CI", weight='bold', va='bottom', ha='center', fontsize=13)
 
 # 5. Populate Data Rows with Significance Bolding
 color_ad = '#cc3311' # red
@@ -79,6 +81,10 @@ for i, item in enumerate(plot_sequence):
         p_str = f"{p_val:.2e}" if p_val < 0.001 else f"{p_val:.3f}"
         ax_pvals.text(0.5, i, p_str, va='center', ha='center', fontsize=11, fontweight=txt_weight)
         
+        # CI Value String (bold if significant)
+        ci_str = f"[{item['CI_low']:.2f}, {item['CI_high']:.2f}]"
+        ax_ci.text(0.5, i, ci_str, va='center', ha='center', fontsize=11, fontweight=txt_weight)
+        
         # Forest Plot Circles and Bars
         ax_plot.errorbar(item['OR_adj'], i, 
                          xerr=[[item['OR_adj'] - item['CI_low']], [item['CI_high'] - item['OR_adj']]],
@@ -93,4 +99,3 @@ ax_plot.set_xlabel("Odds Ratio (log scale, 95% CI)", fontsize=13, fontweight='bo
 ax_plot.set_yticks([])
 
 plt.savefig('Figure4_forest_plot.png', dpi=300, bbox_inches='tight')
-
