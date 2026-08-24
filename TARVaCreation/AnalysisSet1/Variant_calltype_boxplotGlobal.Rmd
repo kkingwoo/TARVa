@@ -13,8 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 
 # 1. Load data files
-counts_df <- read_csv("D://git_hub/TARVa/TARVaCreation/AnalysisSet1/sample_site_counts_per_variant.csv")
-pval_df <- read_csv("D://git_hub/TARVa/TARVaCreation/AnalysisSet1/global_set_calltype_pvalues.csv")
+counts_df <- read_csv("sample_site_counts_per_variant.csv")
+pval_df <- read_csv("global_set_calltype_pvalues.csv")
 
 # Replace "Control" with "CN" and update edit type labels (A-I -> A-G, C-U -> C-T)
 counts_df <- counts_df %>%

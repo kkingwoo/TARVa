@@ -1,0 +1,170 @@
+---
+title: "TPM_PLot"
+author: "Kat J"
+date: "2026-08-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.retina = 2)
+
+required_pkgs <- c("tidyverse", "patchwork", "ggrepel")
+missing_pkgs <- required_pkgs[!required_pkgs %in% installed.packages()[, "Package"]]
+if (length(missing_pkgs) > 0) install.packages(missing_pkgs)
+
+library(tidyverse)
+library(patchwork)
+
+```
+
+```{r parameters}
+csv_path    <- "tpm_variant_count_relationship_stats.csv"
+alpha       <- 0.05
+out_prefix  <- "Figure_TPM_variant_correlation"
+```
+
+```{r load-and-categorize}
+df <- read_csv(csv_path, show_col_types = FALSE) %>%
+  mutate(
+    gene_group  = factor(gene_group, levels = c("AD-enriched", "CN-enriched", "Shared")),
+    ad_sig      = !is.na(ad_pvalue) & ad_pvalue < alpha,
+    control_sig = !is.na(control_pvalue) & control_pvalue < alpha,
+    diff_sig    = !is.na(diff_pvalue) & diff_pvalue < alpha,
+    sig_group = case_when(
+      ad_sig & control_sig  ~ "Both significant",
+      ad_sig & !control_sig ~ "AD only",
+      !ad_sig & control_sig ~ "Control (CN) only",
+      TRUE                  ~ "Neither significant"
+    ),
+    sig_group = factor(sig_group, levels = c(
+      "Neither significant", "AD only", "Control (CN) only", "Both significant"
+    )),
+    diff_sig_label = if_else(
+      diff_sig, "Significantly different", "Not significantly different"
+    ),
+    diff_sig_label = factor(diff_sig_label, levels = c(
+      "Not significantly different", "Significantly different"
+    ))
+  )
+
+# colorblind-safe (RColorBrewer "Dark2")
+sig_colors <- c(
+  "Neither significant" = "grey80",
+  "AD only"              = "#1B9E77",
+  "Control (CN) only"    = "#D95F02",
+  "Both significant"     = "#7570B3"
+)
+outline_colors <- c(
+  "Not significantly different"           = "grey60",
+  "Significantly different" = "black"
+)
+```
+
+```{r panelA, fig.width=9, fig.height=3.6}
+
+plot_df  <- df %>% filter(!is.na(ad_rho), !is.na(control_rho))
+
+
+panelA <- ggplot(plot_df, aes(x = ad_rho, y = control_rho)) +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "grey60", linewidth = 0.4) +
+  geom_vline(xintercept = 0, linetype = "dotted", color = "grey60", linewidth = 0.4) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50", linewidth = 0.4) +
+  geom_point(aes(fill = sig_group, color = diff_sig_label),
+             shape = 21, size = 2.4, stroke = 0.9, alpha = 0.85) +
+  scale_fill_manual(values = sig_colors, breaks = names(sig_colors),
+                    name = "Significant correlations (p-value < 0.05)") +
+  scale_color_manual(values = outline_colors, breaks = names(outline_colors),
+                     name = "Significant difference between\nconditions (p-value < 0.05)") +
+  coord_fixed(xlim = c(-1, 1), ylim = c(-1, 1)) +
+  facet_wrap(~ gene_group, nrow = 1) +
+  labs(
+    x = expression(paste("Spearman ", rho, " (AD)")),
+    y = expression(paste("Spearman ", rho, " (Control)"))
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    panel.grid = element_blank(),
+    strip.background = element_rect(fill = "grey95", color = NA),
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom",
+    legend.box = "vertical",
+    legend.margin = margin(t = -5),
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8)
+  ) +
+  guides(
+    fill  = guide_legend(override.aes = list(shape = 21, color = "grey40", stroke = 0.6, alpha = 1), nrow = 2, order = 1),
+    color = guide_legend(override.aes = list(shape = 21, fill = "white", stroke = 0.9, alpha = 1), order = 2)
+  )
+
+panelA
+```
+
+```{r panelB, fig.width=4, fig.height=3.6}
+
+summary_df <- df %>%
+  count(gene_group, sig_group, .drop = FALSE) %>%
+  group_by(gene_group) %>%
+  mutate(pct = 100 * n / sum(n)) %>%
+  ungroup()
+
+panelB <- ggplot(summary_df, aes(x = gene_group, y = pct, fill = sig_group)) +
+  geom_col(width = 0.65, color = "white", linewidth = 0.3) +
+  geom_text(
+    aes(label = ifelse(n > 0, n, "")),
+    position = position_stack(vjust = 0.5), size = 2.6, color = "white"
+  ) +
+  scale_fill_manual(values = sig_colors, guide = "none") +
+  labs(x = NULL, y = "% of genes in group") +
+  theme_bw(base_size = 11) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 20, hjust = 1)
+  )
+
+panelB
+```
+
+
+```{r combine-figure, fig.width=10, fig.height=4}
+library(patchwork)
+library(grid)
+
+# extract collected legend, then strip legends from the panels themselves
+legend_grob <- cowplot::get_legend(
+  panelA + theme(legend.position = "bottom", legend.box = "vertical")
+)
+
+panelA_noleg <- panelA + theme(legend.position = "none")
+panelB_noleg <- panelB  # already guide = "none"
+
+top_row <- panelB_noleg + panelA_noleg + plot_layout(widths = c(1, 2.3))
+bottom_row <- wrap_elements(legend_grob) + plot_spacer() +
+  plot_layout(widths = c(0, 0))
+
+combined <- top_row / bottom_row +
+  plot_layout(heights = c(3, 1)) +
+  plot_annotation(tag_levels = list(c("A", "B", "", "")))
+
+combined
+```
+
+
+```{r combine-figure-backup, fig.width=10, fig.height=4}
+#combined <- (panelB + panelA) +
+#  plot_layout(widths = c(1, 2.3), guides = "collect") &
+#  theme(legend.position = "bottom", legend.box = "vertical", #legend.justification = "left")
+#combined <- combined + plot_annotation(tag_levels = "A")
+
+#combined
+```
+
+```{r save-figure}
+ggsave(paste0(out_prefix, ".pdf"),  combined, width = 10, height = 4, units = "in", dpi = 300)
+ggsave(paste0(out_prefix, ".tiff"), combined, width = 10, height = 4, units = "in",
+       dpi = 300, compression = "lzw")
+ggsave(paste0(out_prefix, ".png"),  combined, width = 10, height = 4, units = "in", dpi = 300)
+
+message("saved: ", out_prefix, ".pdf / .tiff / .png")
+```
