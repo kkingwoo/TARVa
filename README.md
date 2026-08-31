@@ -41,7 +41,7 @@ The modules used in this part require a *metadata.csv* file with the following f
 
 
 | group | individualID | WGS | RNA | wgs_barcode | rna_barcode | 
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|
 | non-tumor | h1 | R281468 | R281293 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
 | non-tumor | h2 | R281460 | R281291 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
 | non-tumor | h3 | R281467 | R281298 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
