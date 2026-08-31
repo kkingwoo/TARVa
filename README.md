@@ -11,7 +11,8 @@
 ## Part 1: Read QC and data processing            
 
 
-For sorting files by sequencing type and group, and/or to run FastQC and Trimmomatic for read QC. Conda environment dependencies for Part 1 in [bioqc_env.yml](TARVa/bioqc_env.yml). |
+For sorting files by sequencing type and group, and/or to run FastQC and Trimmomatic for read QC. Conda environment dependencies for Part 1 in [bioqc_env.yml](bioqc_env.yml).                  
+
 ### > Sorting input files                  
 
 
@@ -67,7 +68,7 @@ WGS alignment is carried out using BWA-mem. RNAseq alignment is run twice:  once
 
 ## Part 2: Local DB Build                
 
-For sorting files by sequencing type and group, and/or to run FastQC and Trimmomatic for read QC. Conda environment dependencies for Part 2 in [tarva_env.yml](TARVa/tarva_env.yml).            
+For sorting files by sequencing type and group, and/or to run FastQC and Trimmomatic for read QC. Conda environment dependencies for Part 2 in [tarva_env.yml](tarva_env.yml).            
 
 
 ## Part 3: Data analysis                  

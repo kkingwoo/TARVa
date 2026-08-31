@@ -361,12 +361,14 @@ display: none;
 <h2>Part 1: Read QC and data processing</h2>
 <p>For sorting files by sequencing type and group, and/or to run FastQC
 and Trimmomatic for read QC. Conda environment dependencies for Part 1
-in <a href="TARVa/bioqc_env.yml">bioqc_env.yml</a>. | ### &gt; Sorting
-input files</p>
+in <a href="bioqc_env.yml">bioqc_env.yml</a>.</p>
+<div id="sorting-input-files" class="section level3">
+<h3>&gt; Sorting input files</h3>
 <p>Run <b><code>sort-input</code></b> if sequencing files have not yet
 been sorted and organized by group/condition, WGS/RNAseq.</p>
 <p>–<b>Usage:</b>
 <code>tarva sort-input --metadata &lt;metadata.csv&gt; --input &lt;input_dir&gt; --output &lt;sorted_dir&gt;</code></p>
+</div>
 <div id="read-qc-using-trimmomatic-and-fastqc" class="section level3">
 <h3>&gt; Read QC using Trimmomatic and FastQC</h3>
 <p>Run <b><code>qc</code></b> to apply FastQC and Trimmomatic to the
@@ -487,7 +489,7 @@ calling.</p>
 <h2>Part 2: Local DB Build</h2>
 <p>For sorting files by sequencing type and group, and/or to run FastQC
 and Trimmomatic for read QC. Conda environment dependencies for Part 2
-in <a href="TARVa/tarva_env.yml">tarva_env.yml</a>.</p>
+in <a href="tarva_env.yml">tarva_env.yml</a>.</p>
 </div>
 <div id="part-3-data-analysis" class="section level2">
 <h2>Part 3: Data analysis</h2>
