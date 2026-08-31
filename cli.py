@@ -26,6 +26,7 @@ import argparse
 import sys
 
 from tarva import qc as qc_module
+from tarva import sort_input as sort_input_module
 from tarva.wgseqpipe import align as wgs_align
 
 WGSPIPE_STEPS = {
@@ -39,6 +40,12 @@ def build_parser():
     qc_parser = subparsers.add_parser("qc", help=qc_module.__doc__.strip().splitlines()[0])
     qc_module.add_arguments(qc_parser)
     qc_parser.set_defaults(func=qc_module.run)
+
+    sort_input_parser = subparsers.add_parser(
+            "sort-input", help=sort_input_module.__doc__.strip().splitlines()[0]
+            )
+    sort_input_module.add_arguments(sort_input_parser)
+    sort_input_parser.set_defaults(func=sort_input_module.run)
 
     wgseqpipe_parser = subparsers.add_parser("wgseqpipe", help="WGS data processing pipeline")
     wgseqpipe_sub = wgseqpipe_parser.add_subparsers(dest="step", required=True)
