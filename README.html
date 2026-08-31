@@ -372,7 +372,7 @@ been sorted and organized by group/condition, WGS/RNAseq.</p>
 <div id="read-qc-using-trimmomatic-and-fastqc" class="section level3">
 <h3>&gt; Read QC using Trimmomatic and FastQC</h3>
 <p>Run <b><code>qc</code></b> to apply FastQC and Trimmomatic to the
-data.</p>
+data. Currently works for paired-end (PE) data.</p>
 <p>–<b>Usage:</b><code>tarva qc --metadata &lt;metadata.csv&gt; --input &lt;fastq_dir&gt; --output &lt;output_dir&gt;</code></p>
 <p>For full set of options <code>tarva qc --help</code></p>
 <p>When running this step, QC output file locations will be written to
@@ -406,63 +406,63 @@ with the following format:</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td>male</td>
-<td>m1</td>
-<td>ERR2814681</td>
-<td>ERR2812923</td>
+<td>non-tumor</td>
+<td>h1</td>
+<td>R281468</td>
+<td>R281293</td>
 <td>TruSeq3-PE-2.fa</td>
 <td>TruSeq3-PE-2.fa</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>male</td>
-<td>m2</td>
-<td>ERR2814680</td>
-<td>ERR2812921</td>
+<td>non-tumor</td>
+<td>h2</td>
+<td>R281460</td>
+<td>R281291</td>
 <td>TruSeq3-PE-2.fa</td>
 <td>TruSeq3-PE-2.fa</td>
 <td></td>
 </tr>
 <tr class="odd">
-<td>male</td>
-<td>m3</td>
-<td>ERR2814679</td>
-<td>ERR2812918</td>
+<td>non-tumor</td>
+<td>h3</td>
+<td>R281467</td>
+<td>R281298</td>
 <td>TruSeq3-PE-2.fa</td>
 <td>TruSeq3-PE-2.fa</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>female</td>
-<td>f1</td>
-<td>ERR2814677</td>
-<td>ERR2812930</td>
+<td>tumor</td>
+<td>t1</td>
+<td>R281462</td>
+<td>R281290</td>
 <td>TruSeq3-PE-2.fa</td>
 <td>TruSeq3-PE-2.fa</td>
 <td></td>
 </tr>
 <tr class="odd">
-<td>female</td>
-<td>f2</td>
-<td>ERR2814678</td>
-<td>ERR2812929</td>
+<td>tumor</td>
+<td>t2</td>
+<td>R281465</td>
+<td>R281299</td>
 <td>TruSeq3-PE-2.fa</td>
 <td>TruSeq3-PE-2.fa</td>
 <td></td>
 </tr>
 <tr class="even">
-<td>female</td>
-<td>f3</td>
-<td>ERR2814676</td>
-<td>ERR2812927</td>
+<td>tumor</td>
+<td>t3</td>
+<td>R281469</td>
+<td>R281297</td>
 <td>TruSeq3-PE-2.fa</td>
 <td>TruSeq3-PE-2.fa</td>
 <td></td>
 </tr>
 </tbody>
 </table>
-<p>1.) Exactly two distinct groups/conditions should be present in the
-‘group’ column.<br />
+<p>1.) Exactly two distinct groups/conditions/tissues should be present
+in the ‘group’ column.<br />
 2.) individualID is the UUID used for each individual.<br />
 3.) Only the unique prefixes from raw fastq file identifiers (columns
 ‘WGS’ and ‘RNA’) should be the values, ignoring any specific string
@@ -474,22 +474,21 @@ steps.</p>
 </div>
 <div id="read-alignment" class="section level3">
 <h3>&gt; Read alignment</h3>
-<p>WGS alignment is carried out using BWA-mem. RNAseq alignment is run
-twice: once for Stringtie, and again in two-pass mode, for variant
-calling.</p>
+<p>WGS alignment is carried out using BWA-mem. RNAseq alignment is done
+with STAR and is run twice: once for Stringtie, and again in two-pass
+mode for variant calling.</p>
 </div>
 <div id="alignment-qc" class="section level3">
 <h3>&gt; Alignment QC</h3>
 </div>
-<div id="variant-calling-and-rna--wgs-check" class="section level3">
-<h3>&gt; Variant calling and RNA-&gt; WGS check</h3>
+<div id="variant-calling" class="section level3">
+<h3>&gt; Variant calling</h3>
 </div>
 </div>
 <div id="part-2-local-db-build" class="section level2">
 <h2>Part 2: Local DB Build</h2>
-<p>For sorting files by sequencing type and group, and/or to run FastQC
-and Trimmomatic for read QC. Conda environment dependencies for Part 2
-in <a href="tarva_env.yml">tarva_env.yml</a>.</p>
+<p>Building local database to be queried during data analysis. Conda
+environment dependencies for Part 2 in <a href="tarva_env.yml">tarva_env.yml</a>.</p>
 </div>
 <div id="part-3-data-analysis" class="section level2">
 <h2>Part 3: Data analysis</h2>
@@ -511,27 +510,27 @@ assessed.</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td>m1</td>
+<td>h1</td>
 <td>2</td>
 </tr>
 <tr class="even">
-<td>m2</td>
+<td>h2</td>
 <td>10</td>
 </tr>
 <tr class="odd">
-<td>m3</td>
+<td>h3</td>
 <td>3</td>
 </tr>
 <tr class="even">
-<td>f1</td>
+<td>t1</td>
 <td>1</td>
 </tr>
 <tr class="odd">
-<td>f2</td>
+<td>t2</td>
 <td>8</td>
 </tr>
 <tr class="even">
-<td>f3</td>
+<td>t3</td>
 <td>5</td>
 </tr>
 </tbody>
@@ -562,7 +561,7 @@ assessed.</p>
 <h3><em>We will return after the job is done. Stay tuned</em></h3>
 <p><u>AI assistance with code</u></p>
 <p><strong>Original code and logic:</strong> <a href="https://github.com/qainsights/Quillx"><img role="img" aria-label="Quillx" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjMiIGhlaWdodD0iMjAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iUXVpbGx4OiAxLzUgwrcgVmVyc2UiPgogIDx0aXRsZT5RdWlsbHg6IDEvNSDigJQgVmVyc2U8L3RpdGxlPgogIDxsaW5lYXJHcmFkaWVudCBpZD0icyIgeDI9IjAiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2JiYiIgc3RvcC1vcGFjaXR5PSIuMSIvPgogICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLW9wYWNpdHk9Ii4xIi8+CiAgPC9saW5lYXJHcmFkaWVudD4KICA8Y2xpcFBhdGggaWQ9InIiPgogICAgPHJlY3Qgd2lkdGg9IjEyMyIgaGVpZ2h0PSIyMCIgcng9IjMiIGZpbGw9IiNmZmYiLz4KICA8L2NsaXBQYXRoPgogIDxnIGNsaXAtcGF0aD0idXJsKCNyKSI+CiAgICA8cmVjdCB3aWR0aD0iMzYiIGhlaWdodD0iMjAiIGZpbGw9IiM1NTUiLz4KICAgIDxyZWN0IHg9IjM2IiB3aWR0aD0iODgiIGhlaWdodD0iMjAiIGZpbGw9IiMyZGE0NGUiLz4KICAgIDxyZWN0IHdpZHRoPSIxMjMiIGhlaWdodD0iMjAiIGZpbGw9InVybCgjcykiLz4KICA8L2c+CiAgPGcgZmlsbD0iI2ZmZiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9IkRlamFWdSBTYW5zLFZlcmRhbmEsR2VuZXZhLHNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTEwIj4KICAgIDx0ZXh0IHg9IjE3OCIgeT0iMTUwIiBmaWxsPSIjMDEwMTAxIiBmaWxsLW9wYWNpdHk9Ii4zIiB0cmFuc2Zvcm09InNjYWxlKC4xKSIgdGV4dExlbmd0aD0iMjM1IiBsZW5ndGhBZGp1c3Q9InNwYWNpbmciPlF1aWxseDwvdGV4dD4KICAgIDx0ZXh0IHg9IjE3OCIgeT0iMTQwIiB0cmFuc2Zvcm09InNjYWxlKC4xKSIgdGV4dExlbmd0aD0iMjM1IiBsZW5ndGhBZGp1c3Q9InNwYWNpbmciPlF1aWxseDwvdGV4dD4KICAgIDx0ZXh0IHg9Ijc5MiIgeT0iMTUwIiBmaWxsPSIjMDEwMTAxIiBmaWxsLW9wYWNpdHk9Ii4zIiB0cmFuc2Zvcm09InNjYWxlKC4xKSIgdGV4dExlbmd0aD0iNzU1IiBsZW5ndGhBZGp1c3Q9InNwYWNpbmciPjEvNSDCtyBWZXJzZTwvdGV4dD4KICAgIDx0ZXh0IHg9Ijc5MiIgeT0iMTQwIiB0cmFuc2Zvcm09InNjYWxlKC4xKSIgdGV4dExlbmd0aD0iNzU1IiBsZW5ndGhBZGp1c3Q9InNwYWNpbmciPjEvNSDCtyBWZXJzZTwvdGV4dD4KICA8L2c+Cjwvc3ZnPgo=" alt="Quillx" /></a></p>
-<p><strong>Original code and logic –&gt; CLI:</strong> <a href="https://github.com/qainsights/Quillx"><img role="img" aria-label="Quillx" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMzYiIGhlaWdodD0iMjAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iUXVpbGx4OiAzLzUgwrcgQWRhcHRlZCI+CiAgPHRpdGxlPlF1aWxseDogMy81IOKAlCBBZGFwdGVkPC90aXRsZT4KICA8bGluZWFyR3JhZGllbnQgaWQ9InMiIHgyPSIwIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNiYmIiIHN0b3Atb3BhY2l0eT0iLjEiLz4KICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1vcGFjaXR5PSIuMSIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGNsaXBQYXRoIGlkPSJyIj4KICAgIDxyZWN0IHdpZHRoPSIxMzYiIGhlaWdodD0iMjAiIHJ4PSIzIiBmaWxsPSIjZmZmIi8+CiAgPC9jbGlwUGF0aD4KICA8ZyBjbGlwLXBhdGg9InVybCgjcikiPgogICAgPHJlY3Qgd2lkdGg9IjM2IiBoZWlnaHQ9IjIwIiBmaWxsPSIjNTU1Ii8+CiAgICA8cmVjdCB4PSIzNiIgd2lkdGg9IjEwMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2Q0YjgyMCIvPgogICAgPHJlY3Qgd2lkdGg9IjEzNiIgaGVpZ2h0PSIyMCIgZmlsbD0idXJsKCNzKSIvPgogIDwvZz4KICA8ZyBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iRGVqYVZ1IFNhbnMsVmVyZGFuYSxHZW5ldmEsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMTAiPgogICAgPHRleHQgeD0iMTc4IiB5PSIxNTAiIGZpbGw9IiMwMTAxMDEiIGZpbGwtb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0ic2NhbGUoLjEpIiB0ZXh0TGVuZ3RoPSIyMzUiIGxlbmd0aEFkanVzdD0ic3BhY2luZyI+UXVpbGx4PC90ZXh0PgogICAgPHRleHQgeD0iMTc4IiB5PSIxNDAiIHRyYW5zZm9ybT0ic2NhbGUoLjEpIiB0ZXh0TGVuZ3RoPSIyMzUiIGxlbmd0aEFkanVzdD0ic3BhY2luZyI+UXVpbGx4PC90ZXh0PgogICAgPHRleHQgeD0iODU4IiB5PSIxNTAiIGZpbGw9IiMwMTAxMDEiIGZpbGwtb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0ic2NhbGUoLjEpIiB0ZXh0TGVuZ3RoPSI4ODUiIGxlbmd0aEFkanVzdD0ic3BhY2luZyI+My81IMK3IEFkYXB0ZWQ8L3RleHQ+CiAgICA8dGV4dCB4PSI4NTgiIHk9IjE0MCIgdHJhbnNmb3JtPSJzY2FsZSguMSkiIHRleHRMZW5ndGg9Ijg4NSIgbGVuZ3RoQWRqdXN0PSJzcGFjaW5nIj4zLzUgwrcgQWRhcHRlZDwvdGV4dD4KICA8L2c+Cjwvc3ZnPgo=" alt="Quillx" /></a></p>
+<p><strong>Original code and logic converted to CLI:</strong> <a href="https://github.com/qainsights/Quillx"><img role="img" aria-label="Quillx" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMzYiIGhlaWdodD0iMjAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iUXVpbGx4OiAzLzUgwrcgQWRhcHRlZCI+CiAgPHRpdGxlPlF1aWxseDogMy81IOKAlCBBZGFwdGVkPC90aXRsZT4KICA8bGluZWFyR3JhZGllbnQgaWQ9InMiIHgyPSIwIiB5Mj0iMTAwJSI+CiAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNiYmIiIHN0b3Atb3BhY2l0eT0iLjEiLz4KICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1vcGFjaXR5PSIuMSIvPgogIDwvbGluZWFyR3JhZGllbnQ+CiAgPGNsaXBQYXRoIGlkPSJyIj4KICAgIDxyZWN0IHdpZHRoPSIxMzYiIGhlaWdodD0iMjAiIHJ4PSIzIiBmaWxsPSIjZmZmIi8+CiAgPC9jbGlwUGF0aD4KICA8ZyBjbGlwLXBhdGg9InVybCgjcikiPgogICAgPHJlY3Qgd2lkdGg9IjM2IiBoZWlnaHQ9IjIwIiBmaWxsPSIjNTU1Ii8+CiAgICA8cmVjdCB4PSIzNiIgd2lkdGg9IjEwMCIgaGVpZ2h0PSIyMCIgZmlsbD0iI2Q0YjgyMCIvPgogICAgPHJlY3Qgd2lkdGg9IjEzNiIgaGVpZ2h0PSIyMCIgZmlsbD0idXJsKCNzKSIvPgogIDwvZz4KICA8ZyBmaWxsPSIjZmZmIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iRGVqYVZ1IFNhbnMsVmVyZGFuYSxHZW5ldmEsc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxMTAiPgogICAgPHRleHQgeD0iMTc4IiB5PSIxNTAiIGZpbGw9IiMwMTAxMDEiIGZpbGwtb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0ic2NhbGUoLjEpIiB0ZXh0TGVuZ3RoPSIyMzUiIGxlbmd0aEFkanVzdD0ic3BhY2luZyI+UXVpbGx4PC90ZXh0PgogICAgPHRleHQgeD0iMTc4IiB5PSIxNDAiIHRyYW5zZm9ybT0ic2NhbGUoLjEpIiB0ZXh0TGVuZ3RoPSIyMzUiIGxlbmd0aEFkanVzdD0ic3BhY2luZyI+UXVpbGx4PC90ZXh0PgogICAgPHRleHQgeD0iODU4IiB5PSIxNTAiIGZpbGw9IiMwMTAxMDEiIGZpbGwtb3BhY2l0eT0iLjMiIHRyYW5zZm9ybT0ic2NhbGUoLjEpIiB0ZXh0TGVuZ3RoPSI4ODUiIGxlbmd0aEFkanVzdD0ic3BhY2luZyI+My81IMK3IEFkYXB0ZWQ8L3RleHQ+CiAgICA8dGV4dCB4PSI4NTgiIHk9IjE0MCIgdHJhbnNmb3JtPSJzY2FsZSguMSkiIHRleHRMZW5ndGg9Ijg4NSIgbGVuZ3RoQWRqdXN0PSJzcGFjaW5nIj4zLzUgwrcgQWRhcHRlZDwvdGV4dD4KICA8L2c+Cjwvc3ZnPgo=" alt="Quillx" /></a></p>
 </div>
 <div id="references" class="section level3">
 <h3>References</h3>

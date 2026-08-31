@@ -24,7 +24,7 @@ Run <b>`sort-input`</b> if sequencing files have not yet been sorted and organiz
 ### > Read QC using Trimmomatic and FastQC   
 
 
-Run <b>`qc`</b> to apply FastQC and Trimmomatic to the data.          
+Run <b>`qc`</b> to apply FastQC and Trimmomatic to the data. Currently works for paired-end (PE) data.                     
 
 
 --<b>Usage:</b>```tarva qc --metadata <metadata.csv> --input <fastq_dir> --output <output_dir>```             
@@ -42,14 +42,14 @@ The modules used in this part require a *metadata.csv* file with the following f
 
 | group | individualID | WGS | RNA | wgs_barcode | rna_barcode | 
 |---|---|---|---|---|---|---|
-| male | m1 | ERR2814681 | ERR2812923 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
-| male | m2 | ERR2814680 | ERR2812921 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
-| male | m3 | ERR2814679 | ERR2812918 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
-| female | f1 | ERR2814677 | ERR2812930 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
-| female | f2 | ERR2814678 | ERR2812929 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
-| female | f3 | ERR2814676 | ERR2812927 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |                   
+| non-tumor | h1 | R281468 | R281293 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
+| non-tumor | h2 | R281460 | R281291 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
+| non-tumor | h3 | R281467 | R281298 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
+| tumor | t1 | R281462 | R281290 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
+| tumor | t2 | R281465 | R281299 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |
+| tumor | t3 | R281469 | R281297 | TruSeq3-PE-2.fa | TruSeq3-PE-2.fa |                   
 
-1.) Exactly two distinct groups/conditions should be present in the 'group' column.                
+1.) Exactly two distinct groups/conditions/tissues should be present in the 'group' column.                
 2.) individualID is the UUID used for each individual.                  
 3.) Only the unique prefixes from raw fastq file identifiers (columns 'WGS' and 'RNA') should be the values, ignoring any specific string patterns that identify paired-end reads, (e.g., "_1","_2", "R1", "R2").                               
 4.) Barcode/adapter files for use with Trimmomatic are required for QC steps.                 
@@ -58,17 +58,17 @@ The modules used in this part require a *metadata.csv* file with the following f
 
 ### > Read alignment                
 
-WGS alignment is carried out using BWA-mem. RNAseq alignment is run twice:  once for Stringtie, and again in two-pass mode, for variant calling. 
+WGS alignment is carried out using BWA-mem. RNAseq alignment is done with STAR and is run twice:  once for Stringtie, and again in two-pass mode for variant calling. 
 
 ### > Alignment QC                
 
 
-### > Variant calling and RNA-> WGS check                 
+### > Variant calling                
 
 
 ## Part 2: Local DB Build                
 
-For sorting files by sequencing type and group, and/or to run FastQC and Trimmomatic for read QC. Conda environment dependencies for Part 2 in [tarva_env.yml](tarva_env.yml).            
+Building local database to be queried during data analysis. Conda environment dependencies for Part 2 in [tarva_env.yml](tarva_env.yml).            
 
 
 ## Part 3: Data analysis                  
@@ -80,12 +80,12 @@ A *sample_info.csv* file is required for this part. 'individualID' field is requ
 
 | individualID | Age(mos) |                  
 |---|---|                 
-| m1 | 2 |
-| m2 | 10 |
-| m3 | 3 |
-| f1 | 1 |
-| f2 | 8 |
-| f3 | 5 |
+| h1 | 2 |
+| h2 | 10 |
+| h3 | 3 |
+| t1 | 1 |
+| t2 | 8 |
+| t3 | 5 |
 
 </details> 
 ---------------------------------------------------------------
@@ -112,7 +112,7 @@ A *sample_info.csv* file is required for this part. 'individualID' field is requ
 **Original code and logic:**
 [![Quillx](https://raw.githubusercontent.com/qainsights/Quillx/main/badges/quillx-1.svg)](https://github.com/qainsights/Quillx)
 
-**Original code and logic --> CLI:**
+**Original code and logic converted to CLI:**
 [![Quillx](https://raw.githubusercontent.com/qainsights/Quillx/main/badges/quillx-3.svg)](https://github.com/qainsights/Quillx)                 
 
 ### References                
