@@ -89,7 +89,8 @@ A *sample_info.csv* file is required for this part. 'individualID' field is requ
 </details> 
 --------------------------------------------------------------------
 --------------------------------------------------------------------
-> [ * * * <b>CLI WIP</b> * * * ]               
+
+[ * * * <b>CLI WIP</b> * * * ]               
 
 <b>Pipelines to test and incorporate:</b>                 
 
