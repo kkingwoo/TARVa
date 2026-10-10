@@ -16,8 +16,8 @@
   
   The project was originally created specifically for analysis of bulk brain tissue samples 
   from Alzheimer's and cognitively normal aged individuals. The fourth section, [Optional Modules](#part-optional) 
-  includes analyses included in the manuscript but that may not be applicable to other tissue types
-  or organisms and thus not critical for the TARVa workflow.                      
+  outlines analyses included in the manuscript but that may not be applicable to other tissue types
+  or organisms.               
   
   Due to resource requirements, it is recommended to use the tool's `--hpc` mode whenever possible.
 
@@ -25,13 +25,6 @@
 Python 3 is a requirement for this workflow, and three non-interchangeable conda environments are used: [__*bio_qc*__](bioqc_env.yml), [__*stringtie*__](stringtie_env.yml), [__*tarva*__](tarva_env.yml)                                                
 Installation of __star/2.7.11b__, __bwa/0.7.17__, and __R/4.5.1__ are also needed.            
 
-__Python modules__              
-  - pandas            
-  - numpy           
-  - scipy           
-  - statsmodels                 
-  - matplotlib            
-  
 
  ![ ](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHYxdnZhM3pvdzZxeDY3b3FnbDRxeHJsZHlsNzE1Z3A4MjdqNmZwYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif)
 
@@ -245,11 +238,11 @@ Every per-sample step also writes `logs/` and, with `--array`, `summary_parts/`.
 
   - <b>Step 8:</b> Build index with `prep-reference` for combined reference created by Stringtie in [Step 3](#step-three).                 
 
-  - <b>Step 9:</b> Align RNA-seq reads using BWA-mem.                     
+  - <b>Step 9:</b> Align RNA-seq reads using STAR in 2-pass mode.             
   
   <b>Usage:</b> ```tarva rnaseqpipe align --help ```                      
   
-  - <b>Step 10:</b> QC alignments with GATK short-variant pipeline.                      
+  - <b>Step 10:</b> QC alignments with GATK pipeline.                      
   
   <b>Usage:</b> ```tarva rnaseqpipe preprocess --help ```                    
   
