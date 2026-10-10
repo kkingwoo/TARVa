@@ -3,8 +3,8 @@ qc: check raw FASTQ read lengths, run FastQC, and trim reads with Trimmomatic
     for WGS and RNA-seq samples
 
     `tarva qc --metadata <meta.csv> --input <fastq_dir> --output <output_dir>
-        [--full] [--sample-size N] [--threads N] [--jobs N]
-        [--minlen-fraction F] [--list-adapters]
+        [--steps STEPS] [--full] [--sample-size N] [--threads N] [--jobs N]
+        [--minlen-fraction F] [--rna-minlen N] [--list-adapters]
         [--hpc] [--conda-env NAME] [--directives-dict "{'partition': ..., ...}"]`
 
     FASTQ files are expected to live in a directory tree under `--input`,
@@ -14,29 +14,38 @@ qc: check raw FASTQ read lengths, run FastQC, and trim reads with Trimmomatic
     `--metadata` -- the WGS/RNA columns' prefixes are matched against
     filenames in the resolved subfolder.
 
-    Steps:
-        1.) Observed read length is checked per FASTQ file (read_lengths.csv).
-        2.) FastQC is run per (seq_type, group, adapter) group, writing into
-            the mirrored tree <output>/fastqc/WGS|RNA/<group>/<adapter_stem>/
+    Steps (select a subset with --steps):
+        1.) read-lengths - observed read length is checked per FASTQ file
+            (read_lengths.csv). Up to --jobs files are scanned concurrently.
+            With --full every read is scanned instead of the first
+            --sample-size, which is what downstream steps needing an exact
+            per-file length should be run with.
+        2.) fastqc - FastQC is run per (seq_type, group, adapter) group,
+            writing into the mirrored tree
+            <output>/fastqc/WGS|RNA/<group>/<adapter_stem>/
             (fastqc_summary.csv summarizes across all of them). Up to --jobs
             groups are run concurrently, each FastQC invocation itself using
             --threads internally.
-        3.) Trimmomatic is run per paired sample, using the observed read
-            length to set MINLEN (round(--minlen-fraction * read_length)).
-            The adapter FASTA used for each sample/seq-type comes from its
-            wgs_barcode/rna_barcode metadata value. Output mirrors the same
-            tree: <output>/trimmed/WGS|RNA/<group>/<adapter_stem>/. Up to
-            --jobs samples are trimmed concurrently, each Trimmomatic
-            invocation itself using --threads internally.
+        3.) trim - Trimmomatic is run per paired sample, using the observed
+            read length to set MINLEN (round(--minlen-fraction * read_length)).
+            RNA-seq libraries that arrive already trimmed to variable lengths
+            can opt out of that with --rna-minlen, which sets an absolute
+            MINLEN for RNA-seq only. The adapter FASTA used for each sample/
+            seq-type comes from its wgs_barcode/rna_barcode metadata value.
+            Output mirrors the same tree:
+            <output>/trimmed/WGS|RNA/<group>/<adapter_stem>/. Up to --jobs
+            samples are trimmed concurrently, each Trimmomatic invocation
+            itself using --threads internally.
 
-    Re-run as needed until reads look clean -- each step's output directory is
-    overwritten on each run.
+    Re-run as needed until reads look clean. Each step named in --steps
+    overwrites its own output on each run; steps not named are skipped and
+    their previous output is left untouched.
 """
 
 import gzip, subprocess, sys
 
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import pandas as pd
@@ -45,7 +54,7 @@ from tarva.metadata import load_metadata
 from tarva.adapters import print_available_adapters, resolve_adapter
 from tarva.slurm_utils import parse_directives_dict, split_directives, submit_job, write_sbatch_script
 
-DEFAULT_MINLEN_FRACTION = 0.7
+DEFAULT_MINLEN_FRACTION, STEP_NAMES = 0.7, ("read-lengths", "fastqc", "trim")
 
 
 def add_arguments(parser):
@@ -73,21 +82,45 @@ def add_arguments(parser):
             "--sample-size", type=int, default=1000,
             help="Number of reads to sample per file when not using --full (default: 1000)",
             )
+    parser.add_argument(
+            "--steps", default="all",
+            help=(
+                "Comma-separated subset of QC steps to run: "
+                + ", ".join(STEP_NAMES)
+                + " (default: all). Steps not listed are skipped and their previous "
+                "output left untouched -- e.g. `--steps read-lengths` refreshes "
+                "read_lengths.csv without re-running FastQC or overwriting trimmed/. "
+                "Skipping read-lengths requires read_lengths.csv to already exist in "
+                "--output, since Trimmomatic's MINLEN is derived from it."
+                ),
+            )
     parser.add_argument("--threads", type=int, default=4, help="Threads for FastQC/Trimmomatic (default: 4)")
     parser.add_argument(
             "--jobs", type=int, default=1,
             help=(
-                "Number of FastQC groups / samples' Trimmomatic runs to execute "
-                "concurrently (default: 1). Each job uses --threads internally, so total "
-                "CPU need is roughly --jobs x --threads -- size --cpus-per-task in "
-                "--directives-dict accordingly when using --hpc."
+                "Number of FASTQ files / FastQC groups / samples' Trimmomatic runs to "
+                "execute concurrently (default: 1). FastQC and Trimmomatic jobs each use "
+                "--threads internally "
+                "--jobs x --threads -- size --cpus-per-task in --directives-dict "
+                "accordingly when using --hpc."
                 ),
             )
     parser.add_argument(
             "--minlen-fraction", type=float, default=DEFAULT_MINLEN_FRACTION,
             help=(
                 "Trimmomatic MINLEN is set to round(fraction * observed read length) "
-                f"per file (default: {DEFAULT_MINLEN_FRACTION})"
+                f"per file (default: {DEFAULT_MINLEN_FRACTION}); RNA-seq files use "
+                "this too unless --rna-minlen is given"
+                ),
+            )
+    parser.add_argument(
+            "--rna-minlen", type=int, default=None, metavar="N",
+            help=(
+                "Absolute Trimmomatic MINLEN for RNA-seq reads, overriding "
+                "--minlen-fraction for RNA only. Use this when RNA libraries arrive "
+                "already trimmed to variable read lengths, where a fraction of the "
+                "observed maximum would discard short but usable reads "
+                "(e.g. --rna-minlen 40). Unset: RNA is calculated like WGS."
                 ),
             )
     parser.add_argument(
@@ -149,16 +182,34 @@ def _write_output_location_note(output_dir):
     note_path.write_text("\n".join(lines) + "\n")
     print(f"Wrote output location summary: {note_path}")
 
+def _parse_steps(raw):
+    """
+    Turn the --steps value into a set of step names, rejecting anything not in
+    STEP_NAMES.
+    """
+    if str(raw).strip().lower() == "all":
+        return set(STEP_NAMES)
+    steps = {s.strip().lower() for s in str(raw).split(",") if s.strip()}
+    unknown = sorted(steps - set(STEP_NAMES))
+    if unknown:
+        raise SystemExit(
+                f"tarva qc: unknown --steps value(s): {unknown}. "
+                f"Valid steps are {list(STEP_NAMES)}, or 'all'."
+                )
+    if not steps:
+        raise SystemExit("tarva qc: --steps was empty -- give at least one step, or 'all'.")
+    return steps
+
 def run_qc(args):
+    steps = _parse_steps(args.steps)
     meta = load_metadata(args.metadata)
     input_dir = Path(args.input)
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
     _write_output_location_note(output_dir)
+    print("Running QC step(s): " + ", ".join(s for s in STEP_NAMES if s in steps))
 
     all_files = []
-    readlength_rows = []
-
     for sample in meta.samples:
         for seq_type, files in (
                 ("WGS", sample.wgs_files(input_dir)),
@@ -175,87 +226,51 @@ def run_qc(args):
                 continue
             for f in files:
                 all_files.append((sample, seq_type, f))
-                stats = check_read_length(f, full=args.full, sample_size=args.sample_size)
-                readlength_rows.append({
-                    "individualID": sample.individual_id,
-                    "group": sample.group,
-                    "seq_type": seq_type,
-                    "file": f.name,
-                    "n_reads_checked": stats["n_reads"],
-                    "min_length": stats["min"],
-                    "max_length": stats["max"],
-                    "is_uniform": stats["min"] == stats["max"],
-                    })
-
-    readlength_df = pd.DataFrame(readlength_rows)
-    readlength_csv = output_dir / "read_lengths.csv"
-    readlength_df.to_csv(readlength_csv, index=False)
-    print(f"Wrote read length summary: {readlength_csv}")
-
-    for seq_type in ("WGS", "RNA"):
-        subset = readlength_df[readlength_df["seq_type"] == seq_type] if not readlength_df.empty else readlength_df
-        if subset.empty:
-            print(f"{seq_type} read length: no files found")
-            continue
-        if subset["is_uniform"].all() and subset["min_length"].nunique() == 1:
-            print(f"{seq_type} read length: {subset['min_length'].iloc[0]} bp (uniform across all matched files)")
-        else:
-            print(
-                    f"{seq_type} read length: varies {subset['min_length'].min()}-{subset['max_length'].max()} bp "
-                    f"(not uniform -- see {readlength_csv})"
-                    )
 
     if not all_files:
-        print("No FASTQ files matched the metadata -- skipping FastQC and Trimmomatic.", file=sys.stderr)
-        return readlength_df
+        print("No FASTQ files matched the metadata -- nothing to do.", file=sys.stderr)
+        return None
 
-    fastqc_groups = defaultdict(list)
-    for sample, seq_type, f in all_files:
-        barcode = sample.wgs_barcode if seq_type == "WGS" else sample.rna_barcode
-        adapter_stem = resolve_adapter(barcode).stem
-        fastqc_groups[(seq_type, sample.group, adapter_stem)].append((sample, seq_type, f))
+    readlength_csv = output_dir / "read_lengths.csv"
+    if "read-lengths" in steps:
+        scan = "every read" if args.full else f"the first {args.sample_size} reads"
+        print(f"Checking read length in {len(all_files)} file(s), scanning {scan}, {args.jobs} at a time")
+        readlength_df = _measure_read_lengths(
+                all_files, full=args.full, sample_size=args.sample_size, jobs=args.jobs
+                )
+        readlength_df.to_csv(readlength_csv, index=False)
+        print(f"Wrote read length summary: {readlength_csv}")
+        _report_read_lengths(readlength_df, readlength_csv)
+    elif readlength_csv.is_file():
+        readlength_df = pd.read_csv(readlength_csv)
+        print(f"Reusing existing read lengths: {readlength_csv}")
+    else:
+        readlength_df = None
 
-    def _run_fastqc_group(group_key):
-        seq_type, group, adapter_stem = group_key
-        group_dir = _fastqc_group_dir(output_dir, seq_type, group, adapter_stem)
-        group_dir.mkdir(parents=True, exist_ok=True)
-        cmd = ["fastqc", "--extract", "-t", str(args.threads), "-o", str(group_dir)]
-        cmd += [str(f) for _, _, f in fastqc_groups[group_key]]
-        print("Running FastQC: " + " ".join(cmd))
-        result = subprocess.run(cmd)
-        if result.returncode != 0:
-            print(
-                    f"WARNING: FastQC reported one or more failures for group {group_key} "
-                    f"(exit code {result.returncode}) -- see the FastQC output above for which "
-                    f"file(s) failed. Continuing with whatever files it did process successfully.",
-                    file=sys.stderr,
+    summary_df = _run_fastqc(args, all_files, output_dir) if "fastqc" in steps else None
+
+    trimmed_df = None
+    if "trim" in steps:
+        if readlength_df is None:
+            raise SystemExit(
+                    f"tarva qc: --steps includes 'trim' but no read lengths are available "
+                    f"({readlength_csv} not found). Include 'read-lengths' at least once first."
                     )
-        return group_key
-
-    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
-        futures = [pool.submit(_run_fastqc_group, key) for key in fastqc_groups]
-        for future in as_completed(futures):
-            future.result()
-
-    summary_df = parse_fastqc_results(output_dir, all_files)
-    summary_csv = output_dir / "fastqc_summary.csv"
-    summary_df.to_csv(summary_csv, index=False)
-    print(f"Wrote FastQC summary: {summary_csv}")
-
-    trimmed_df = run_trimmomatic(
-            meta, input_dir, output_dir, readlength_df,
-            minlen_fraction=args.minlen_fraction,
-            threads=args.threads,
-            jobs=args.jobs,
-            )
-    trimmed_csv = output_dir / "trimmomatic_summary.csv"
-    trimmed_df.to_csv(trimmed_csv, index=False)
-    print(f"Wrote Trimmomatic summary: {trimmed_csv}")
+        trimmed_df = run_trimmomatic(
+                meta, input_dir, output_dir, readlength_df,
+                minlen_fraction=args.minlen_fraction,
+                rna_minlen=args.rna_minlen,
+                threads=args.threads,
+                jobs=args.jobs,
+                )
+        trimmed_csv = output_dir / "trimmomatic_summary.csv"
+        trimmed_df.to_csv(trimmed_csv, index=False)
+        print(f"Wrote Trimmomatic summary: {trimmed_csv}")
 
     return readlength_df, summary_df, trimmed_df
 
 # ---------------------------------------------------
-# Read length checking
+# Read length checking for Trimmomatic
 # ---------------------------------------------------
 
 def _open_fastq(path):
@@ -285,6 +300,52 @@ def check_read_length(path, full=False, sample_size=1000):
             if not full and n_reads >= sample_size:
                 break
     return {"n_reads": n_reads, "min": min_len, "max": max_len}
+
+# --------------------------------------------------
+# Read length reporting for ALL reads for cell deconvo
+# --------------------------------------------------
+
+def _measure_read_lengths(all_files, full, sample_size, jobs):
+    """
+    Measure read length for every (sample, seq_type, path) in `all_files`, up
+    to `jobs` files at a time.
+    """
+    rows = []
+    with ProcessPoolExecutor(max_workers=jobs) as pool:
+        futures = {
+            pool.submit(check_read_length, str(f), full, sample_size): (sample, seq_type, f)
+            for sample, seq_type, f in all_files
+            }
+        for future in as_completed(futures):
+            sample, seq_type, f = futures[future]
+            stats = future.result()
+            rows.append({
+                "individualID": sample.individual_id,
+                "group": sample.group,
+                "seq_type": seq_type,
+                "file": f.name,
+                "n_reads_checked": stats["n_reads"],
+                "min_length": stats["min"],
+                "max_length": stats["max"],
+                "is_uniform": stats["min"] == stats["max"],
+                })
+    return pd.DataFrame(rows).sort_values(
+            ["seq_type", "individualID", "file"], ignore_index=True
+            )
+
+def _report_read_lengths(readlength_df, readlength_csv):
+    for seq_type in ("WGS", "RNA"):
+        subset = readlength_df[readlength_df["seq_type"] == seq_type] if not readlength_df.empty else readlength_df
+        if subset.empty:
+            print(f"{seq_type} read length: no files found")
+            continue
+        if subset["is_uniform"].all() and subset["min_length"].nunique() == 1:
+            print(f"{seq_type} read length: {subset['min_length'].iloc[0]} bp (uniform across all matched files)")
+        else:
+            print(
+                    f"{seq_type} read length: varies {subset['min_length'].min()}-{subset['max_length'].max()} bp "
+                    f"(not uniform -- see {readlength_csv})"
+                    )
 
 # ---------------------------------------------------
 # FastQC summary parsing
@@ -383,11 +444,53 @@ def parse_fastqc_results(output_dir, all_files):
             })
     return pd.DataFrame(rows)
 
+def _run_fastqc(args, all_files, output_dir):
+    fastqc_groups = defaultdict(list)
+    for sample, seq_type, f in all_files:
+        barcode = sample.wgs_barcode if seq_type == "WGS" else sample.rna_barcode
+        adapter_stem = resolve_adapter(barcode).stem
+        fastqc_groups[(seq_type, sample.group, adapter_stem)].append((sample, seq_type, f))
+
+    def _run_fastqc_group(group_key):
+        seq_type, group, adapter_stem = group_key
+        group_dir = _fastqc_group_dir(output_dir, seq_type, group, adapter_stem)
+        group_dir.mkdir(parents=True, exist_ok=True)
+        cmd = ["fastqc", "--extract", "-t", str(args.threads), "-o", str(group_dir)]
+        cmd += [str(f) for _, _, f in fastqc_groups[group_key]]
+        print("Running FastQC: " + " ".join(cmd))
+        result = subprocess.run(cmd)
+        if result.returncode != 0:
+            print(
+                    f"WARNING: FastQC reported one or more failures for group {group_key} "
+                    f"(exit code {result.returncode}) -- see the FastQC output above for which "
+                    f"file(s) failed. Continuing with whatever files it did process successfully.",
+                    file=sys.stderr,
+                    )
+        return group_key
+
+    with ThreadPoolExecutor(max_workers=args.jobs) as pool:
+        futures = [pool.submit(_run_fastqc_group, key) for key in fastqc_groups]
+        for future in as_completed(futures):
+            future.result()
+
+    summary_df = parse_fastqc_results(output_dir, all_files)
+    summary_csv = output_dir / "fastqc_summary.csv"
+    summary_df.to_csv(summary_csv, index=False)
+    print(f"Wrote FastQC summary: {summary_csv}")
+    return summary_df
+
 # ---------------------------------------------------
 # Trimmomatic
 # ---------------------------------------------------
 
-def _minlen_for_file(readlength_df, filename, fraction):
+def _minlen_for_file(readlength_df, filename, fraction, seq_type, rna_minlen):
+    """
+    MINLEN for one FASTQ file.
+
+    Both seq types default to a fraction of the observed read length if --minlen_fraction not used.
+    """
+    if seq_type == "RNA" and rna_minlen is not None:
+        return max(1, rna_minlen)
     row = readlength_df[readlength_df["file"] == filename]
     if row.empty:
         raise ValueError(f"No read length recorded for {filename} -- was read length checking skipped?")
@@ -395,9 +498,10 @@ def _minlen_for_file(readlength_df, filename, fraction):
     return max(1, round(fraction * observed))
 
 def _trim_one(job):
-    sample, seq_type, fwd, rev, barcode, readlength_df, minlen_fraction, threads, trimmed_dir = job
+    (sample, seq_type, fwd, rev, barcode, readlength_df, minlen_fraction,
+     rna_minlen, threads, trimmed_dir) = job
     trimmed_dir.mkdir(parents=True, exist_ok=True)
-    minlen = _minlen_for_file(readlength_df, fwd.name, minlen_fraction)
+    minlen = _minlen_for_file(readlength_df, fwd.name, minlen_fraction, seq_type, rna_minlen)
     adapter_path = resolve_adapter(barcode)
 
     out_fwd_paired = trimmed_dir / f"{fwd.stem}.paired.fastq.gz"
@@ -428,7 +532,8 @@ def _trim_one(job):
         "log": result.stderr.strip(),
         }
 
-def run_trimmomatic(meta, input_dir, output_dir, readlength_df, minlen_fraction, threads, jobs):
+def run_trimmomatic(meta, input_dir, output_dir, readlength_df, minlen_fraction,
+                    rna_minlen, threads, jobs):
     trim_jobs = []
     for sample in meta.samples:
         for seq_type, files, barcode in (
@@ -447,7 +552,8 @@ def run_trimmomatic(meta, input_dir, output_dir, readlength_df, minlen_fraction,
             adapter_stem = resolve_adapter(barcode).stem
             trimmed_dir = output_dir / "trimmed" / seq_type / sample.group / adapter_stem
             trim_jobs.append(
-                    (sample, seq_type, fwd, rev, barcode, readlength_df, minlen_fraction, threads, trimmed_dir)
+                    (sample, seq_type, fwd, rev, barcode, readlength_df, minlen_fraction,
+                     rna_minlen, threads, trimmed_dir)
                     )
 
     rows = []
@@ -477,9 +583,12 @@ def _submit_hpc(args):
             "--jobs", str(args.jobs),
             "--sample-size", str(args.sample_size),
             "--minlen-fraction", str(args.minlen_fraction),
+            "--steps", str(args.steps),
             ]
     if args.full:
         command_parts.append("--full")
+    if args.rna_minlen is not None:
+        command_parts += ["--rna-minlen", str(args.rna_minlen)]
     command = " ".join(command_parts)
 
     sbatch_kwargs, extra_directives = split_directives(args.directives_dict)

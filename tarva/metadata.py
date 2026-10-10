@@ -24,7 +24,17 @@ directory tree of the form:
     <input>/RNA/<group>/<adapter_stem>/*.fastq.gz
 where <adapter_stem> is the filename (without .fa) of the adapter FASTA
 resolved from wgs_barcode/rna_barcode.
+
+After `tarva qc`, trimmed reads live in a parallel tree rooted at that
+command's --output:
+    <qc_output>/trimmed/WGS/<group>/<adapter_stem>/*.paired.fastq.gz
+    <qc_output>/trimmed/RNA/<group>/<adapter_stem>/*.paired.fastq.gz
+Resolve these with Sample.trimmed_*_files()/trimmed_*_pair(), not the
+pre-trim wgs_files()/rna_files() -- the roots differ (`qc`'s --output vs
+`sort-input`'s) and the trimmed glob must exclude the unpaired mates.
 """
+
+import argparse
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -33,6 +43,29 @@ import pandas as pd
 from tarva.adapters import resolve_adapter
 
 REQUIRED_COLUMNS = ["group", "individualID", "WGS", "RNA", "wgs_barcode", "rna_barcode"]
+TRIMMED_SUFFIX = ".paired.fastq.gz"
+DEFAULT_PAIRED_TOKENS = ("_1", "_2")
+
+
+def parse_paired_tokens(value):
+    """
+    argparse `type=` callable for --paired: "FWD,REV" -> ("FWD", "REV").
+
+    These are the substrings that distinguish the forward from the reverse mate
+    in a FASTQ filename -- "_1,_2" for ERR2814681_1.fastq.gz, "_R1_001,_R2_001",
+    "END1,END2".
+    """
+    parts = [p.strip() for p in str(value).split(",")]
+    if len(parts) != 2 or not all(parts):
+        raise argparse.ArgumentTypeError(
+                f"--paired must be two non-empty comma-separated strings, "
+                f"e.g. '_1,_2' (got: {value!r})"
+                )
+    if parts[0] == parts[1]:
+        raise argparse.ArgumentTypeError(
+                f"--paired forward and reverse strings must differ (both were {parts[0]!r})"
+                )
+    return (parts[0], parts[1])
 
 
 def _match_files(pattern, directory):
@@ -45,6 +78,57 @@ def _match_files(pattern, directory):
 
 def _seq_dir(input_root, seq_type, group, adapter_stem):
     return Path(input_root) / seq_type / group / adapter_stem
+
+
+def _trimmed_dir(qc_output, seq_type, group, adapter_stem):
+    return Path(qc_output) / "trimmed" / seq_type / group / adapter_stem
+
+
+def _match_trimmed(pattern, directory):
+    """
+    Trimmomatic's paired output for one individual/seq-type.
+
+    """
+    directory = Path(directory)
+    pattern = str(pattern).strip()
+    if not pattern:
+        raise ValueError("Empty WGS/RNA prefix -- cannot match any files")
+    return sorted(directory.glob(f"{pattern}*{TRIMMED_SUFFIX}"))
+
+
+def _classify_pair(files, pattern, paired_tokens, description):
+    """
+    Split `files` into (forward, reverse) using `paired_tokens`.
+
+    """
+    fwd_token, rev_token = paired_tokens
+    forward, reverse, unmatched = [], [], []
+    for f in files:
+        remainder = f.name[len(pattern):] if f.name.startswith(pattern) else f.name
+        is_fwd, is_rev = fwd_token in remainder, rev_token in remainder
+        if is_fwd and is_rev:
+            raise ValueError(
+                    f"{description}: {f.name} contains both --paired values "
+                    f"({fwd_token!r} and {rev_token!r}) after the prefix {pattern!r} -- "
+                    f"cannot tell which mate it is. Choose values that appear in only "
+                    f"one mate's filename."
+                    )
+        if is_fwd:
+            forward.append(f)
+        elif is_rev:
+            reverse.append(f)
+        else:
+            unmatched.append(f)
+
+    if len(forward) != 1 or len(reverse) != 1:
+        raise ValueError(
+                f"{description}: expected exactly one forward and one reverse FASTQ, found "
+                f"{len(forward)} matching {fwd_token!r} ({[f.name for f in forward]}) and "
+                f"{len(reverse)} matching {rev_token!r} ({[f.name for f in reverse]})"
+                + (f"; unmatched: {[f.name for f in unmatched]}" if unmatched else "")
+                + ". Adjust --paired to match this dataset's mate naming."
+                )
+    return forward[0], reverse[0]
 
 
 @dataclass
@@ -68,6 +152,30 @@ class Sample:
 
     def rna_files(self, input_root):
         return _match_files(self.rna_pattern, self.rna_dir(input_root))
+
+    def trimmed_wgs_dir(self, qc_output):
+        return _trimmed_dir(qc_output, "WGS", self.group, resolve_adapter(self.wgs_barcode).stem)
+
+    def trimmed_rna_dir(self, qc_output):
+        return _trimmed_dir(qc_output, "RNA", self.group, resolve_adapter(self.rna_barcode).stem)
+
+    def trimmed_wgs_files(self, qc_output):
+        return _match_trimmed(self.wgs_pattern, self.trimmed_wgs_dir(qc_output))
+
+    def trimmed_rna_files(self, qc_output):
+        return _match_trimmed(self.rna_pattern, self.trimmed_rna_dir(qc_output))
+
+    def trimmed_wgs_pair(self, qc_output, paired_tokens=DEFAULT_PAIRED_TOKENS):
+        return _classify_pair(
+                self.trimmed_wgs_files(qc_output), self.wgs_pattern, paired_tokens,
+                f"sample {self.individual_id} (WGS, {self.trimmed_wgs_dir(qc_output)})",
+                )
+
+    def trimmed_rna_pair(self, qc_output, paired_tokens=DEFAULT_PAIRED_TOKENS):
+        return _classify_pair(
+                self.trimmed_rna_files(qc_output), self.rna_pattern, paired_tokens,
+                f"sample {self.individual_id} (RNA, {self.trimmed_rna_dir(qc_output)})",
+                )
 
 
 @dataclass

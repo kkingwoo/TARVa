@@ -1,4 +1,4 @@
-name: tarva
+name: bio_qc
 channels:
   - conda-forge
   - bioconda
@@ -9,11 +9,12 @@ channels:
   - r
   - nodefaults
 dependencies:
-  - pyvcf
+  - bbmap
+  - fastqc
+  - trimmomatic
+  - numpy
+  - pandas
   - sqlite
   - scipy
-  - biopython
-  - pandas
-  - statsmodels
-  - anaconda::scikit-learn
-  - bioconda::hgvs
+  - gatk4
+prefix: /users/kkingwoo/.conda/envs/bio_qc

@@ -11,7 +11,7 @@ sort-input: copy raw FASTQ files into the <WGS|RNA>/<group>/<adapter>/ tree
         <output>/WGS/<group>/<adapter_stem>/
         <output>/RNA/<group>/<adapter_stem>/
     where <adapter_stem> is the filename (without .fa) of the adapter FASTA
-    resolved from that sample's wgs_barcode/rna_barcode metadata cell.
+    resolved from that sample's wgs_barcode/rna_barcode metadata.csv column.
 
     Files are copied concurrently across --threads workers
     
@@ -34,7 +34,7 @@ def add_arguments(parser):
     parser.add_argument("--metadata", required=True, help="Path to metadata CSV (see metadata.py)")
     parser.add_argument(
             "--input", required=True,
-            help="Directory containing raw FASTQ files in whatever layout they exist today (searched recursively)",
+            help="Directory containing raw FASTQ files (searched recursively)",
             )
     parser.add_argument(
             "--output", required=True,

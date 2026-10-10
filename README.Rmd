@@ -18,7 +18,8 @@ knitr::opts_chunk$set(echo = TRUE)
   [**TARVa**](#transcript-analysis-of-rna-variants-tarva) is a tool which enables analysis of epitranscriptomic modifications from raw RNA sequencing data, taking  into consideration both depth of read and length of transcript, and scans for all variant call-types in a strand-aware fashion. Starting with a global overview, the pipeline moves through non-hierarchical stratifications of the data, ending with local, per-position comparisons across tissue types and conditions. The  workflow is set up for use with paired-sample raw RNAseq and whole genome sequencing files (fastq) from more than one condition and/or tissue, and covers three data preprocessing pipelines in addition to the main TARVa analysis pipeline.      __NOTE:__ Parts or all of the workflow, algorithm(s), and other components of this project are patent pending.                                                    
 
 ## Tools, Environments and Dependencies
-Python 3 is a requirement for this workflow and custom conda environments were created for each group of pipelines ([data pre-processing](#data-pre-processing-pipelines), [TARVa analysis](#tarva-analysis-pipelines)).                                                
+Python 3 is a requirement for this workflow, and three non-interchangeable conda environments are used: [Environments](#environments).                                                
+Installation of __star/2.7.11b__, __bwa/0.7.17__, and __R/4.5.1__ are also needed. These are the versions used for code testing. Other versions have not been tested. 
 
 For [__data pre-processing pipelines__](#data-pre-processing-pipes)<a name="data-pre-processing-pipelines"></a>  ([Stringtie](StringtiePipe/), [GATK WGS](GatkWGSeqPipe/), [GATK RNA](GatkRnaSeqPipe/)):  
   - conda envs                                                                        
