@@ -39,13 +39,6 @@ either, or both, matching whatever `wgseqpipe variants` was actually given:
               precedence, so removed_by_pon and germline_flagged never count
               the same record twice.
 
-Panel positions are deleted rather than flagged, so an output VCF built with
---pon cannot be told from one built without it by inspection. Both resources
-are therefore recorded twice: as ##tarva_rna_unique_* headers in every output
-VCF, and as the pon_vcf / pon_positions / germline_vcf / germline_positions
-columns of rna_unique_summary.csv. A zero removed_by_pon beside a named file
-with a nonzero index then means the panel genuinely had no overlap, not that no
-panel was applied.
 """
 
 import csv
@@ -115,7 +108,7 @@ def _open_vcf(path):
 
 def load_position_index(vcf_path):
     """
-    {chrom: sorted array of positions}, for membership tests on a large VCF.
+    {chrom: sorted array of positions}.
 
     """
     index = {}
@@ -204,13 +197,7 @@ def rna_contig_names(args, meta):
 
 def warn_contig_mismatch(label, index, rna_contigs):
     """
-    Catch an Ensembl/RefSeq naming mismatch before it masks nothing silently.
-
-    A resource whose contigs are named differently from the RNA calls misses on
-    every lookup: removed_by_pon comes out 0, the run reports success, and no
-    masking was applied at all -- indistinguishable from not passing the flag.
-    This project has already hit the same mismatch with the MGP known-sites VCF
-    (Ensembl `1` versus RefSeq `NC_000067.7`).
+    Catch an Ensembl/RefSeq naming mismatch.
     """
     if not index or not rna_contigs:
         return

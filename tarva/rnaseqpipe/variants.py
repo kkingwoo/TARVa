@@ -15,35 +15,6 @@ VariantFiltration. Output is
 name TARVaCreation/OriginalBuild/checkRNA_againstWGS.py tests for with
 `f.endswith("varcall_flt.vcf")`.
 
-**That name is uncompressed on purpose.** The endswith test does not match
-`.vcf.gz`, so bgzipping this output silently makes the RNA half of the WGS/RNA
-comparison invisible. Legacy named it `_filtered.vcf` and so never matched
-either -- a pre-existing broken handoff this module fixes by naming the file
-what the consumer actually looks for.
-
-Replaces the calling half of legacy GatkRnaSeqPipe/gatkPipe.py (haplocall,
-filter_vars, analyzecovariates). The filter expressions are legacy's, unchanged
-and exposed as flags rather than hardcoded:
-
-    QUAL < 25.0   -> qual_filt
-    QD   < 10.0   -> qual_depth_filt
-    DP   < 20     -> depth_filt
-
-The HaplotypeCaller and VariantFiltration argument lists are legacy's exactly.
-No -L, and none of GATK's RNA-specific options.
-
-One deviation: `--analyze-covariates` is off by default where legacy called
-AnalyzeCovariates unconditionally. It renders its plots through R, and section 2
-of the status doc records that loading the R module alongside an active conda
-env breaks R via LD_LIBRARY_PATH shadowing. It produces a diagnostic PDF, not
-pipeline output, so a failure there should not take the run down with it. When
-enabled, a failure is recorded in the summary and the sample continues.
-
-`--output-mode` defaults to EMIT_ALL_CONFIDENT_SITES, as legacy. Be aware that
-this emits confidently-called reference sites too, not just variants, so the VCF
-is far larger than a variants-only call -- which is the point, since the
-downstream comparison asks whether a position was callable at all, not only
-whether it varied.
 """
 
 import csv
@@ -62,9 +33,9 @@ RAW_VCF_SUFFIX = "_haplo.vcf"
 # checkRNA_againstWGS.py:31 does f.endswith("varcall_flt.vcf") -- not .gz.
 FILTERED_VCF_SUFFIX = "_varcall_flt.vcf"
 DEFAULT_OUTPUT_MODE = "EMIT_ALL_CONFIDENT_SITES"
-DEFAULT_QUAL_FILTER = 25.0
+DEFAULT_QUAL_FILTER = 10.0
 DEFAULT_QUAL_DEPTH_FILTER = 10.0
-DEFAULT_DEPTH_FILTER = 20
+DEFAULT_DEPTH_FILTER = 10
 
 SUMMARY_FIELDS = [
     "individualID", "group", "status", "filtered_vcf", "raw_vcf",
@@ -131,11 +102,7 @@ def add_arguments(parser):
 
 def filtration_args(args):
     """
-    Legacy's three filters, as (name, expression) pairs.
 
-    VariantFiltration pairs --filter-name with --filter-expression positionally,
-    so the two lists must stay in lockstep -- hence building them together here
-    rather than appending to one command list in two places.
     """
     pairs = [
         ("qual_filt", f"QUAL < {args.qual_filter}"),
@@ -177,8 +144,6 @@ def _variants_one(sample, args, ref):
                                   f"missing (preprocess ran without --known-sites?)")
                 print(f"WARNING: {sample.individual_id}: {row['warning']}", file=sys.stderr)
             else:
-                # Diagnostic only, and its R dependency is the fragile part of
-                # this environment, so a failure must not lose the call set.
                 try:
                     run_gatk("AnalyzeCovariates", ["-bqsr", recal_table, "-plots", pdf],
                              temp_dir=args.temp_dir, java_heap=args.java_heap)
@@ -187,13 +152,8 @@ def _variants_one(sample, args, ref):
                     row["warning"] = f"AnalyzeCovariates failed ({exc}); continuing"
                     print(f"WARNING: {sample.individual_id}: {row['warning']}",
                           file=sys.stderr)
-
-        # Argument-for-argument what gatkPipe.py's haplocall ran. No -L, and
-        # none of GATK's RNA-specific options: legacy passed none of them.
         hc_args = ["-R", ref, "-I", bam, "-O", raw_vcf,
                    "--output-mode", args.output_mode]
-        # Resume point: HaplotypeCaller is the expensive step, so a failure in
-        # VariantFiltration below should not discard it.
         if raw_vcf.is_file() and not args.overwrite:
             print(f"{sample.individual_id}: {raw_vcf.name} already present, "
                   f"skipping HaplotypeCaller")

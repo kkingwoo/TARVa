@@ -138,8 +138,7 @@ def _summary_row(sample, bam, sample_dir, status, error=""):
 def _align_one(sample, qc_output, output_dir, index_dir, gtf, sjdb_overhang,
                paired_tokens, threads, limit_bam_sort_ram, overwrite):
     """
-    One sample's two-pass alignment. Failures become FAILED rows rather than
-    exceptions, so one bad sample doesn't abort a pool with hours in flight.
+    One individual's two-pass alignment.
     """
     sample_dir = Path(output_dir) / sample.group / sample.individual_id
     final_bam = sample_dir / f"{sample.individual_id}{TWOPASS_BAM_SUFFIX}"
