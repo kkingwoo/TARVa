@@ -3,10 +3,11 @@
 ### **T**ranscriptomic **A**nalysis of **R**NA **Va**riants [(TARVa)](#transcriptomic-analysis-of-rna-variants-tarva)  
   
 ## Project Overview                                   
-  [**TARVa**](#transcript-analysis-of-rna-variants-tarva) is a tool which enables analysis of variant calls from raw RNA sequencing data, taking  into consideration both depth of read and length of transcript, and scans for all variant call-types in a strand-aware fashion. 
-  Starting with a global overview, the pipeline moves through non-hierarchical stratification of the data, ending with local, per-position comparisons across tissue types and conditions. 
-  The  workflow is set up for use with paired-sample raw RNAseq and whole genome sequencing files (fastq) from more than one condition and/or tissue from diploid organisms,
-  and covers data preprocessing in addition to the main TARVa analysis pipeline.                
+  [**TARVa**](#transcript-analysis-of-rna-variants-tarva) is a workflow which enables analysis of variant calls from raw RNA sequencing data, taking  into consideration both 
+  depth of read and length of transcript, and scans for all variant call-types in a strand-aware fashion.                   
+  
+  The  workflow is set up for use with paired-sample raw RNAseq and whole genome sequencing files (fastq) from more than one condition and/or tissue from diploid organisms.                
+  
   __NOTE:__ Parts or all of the workflow, algorithm(s), and other components of this project are patent pending.  
   
   The workflow contains three main pipelines to be run consecutively:               
@@ -44,9 +45,9 @@ Activate the [bio_qc](bioqc_env.yml) environment for the first part of this pipe
 
 Input Files:                    
 
-  - Reference genome FASTA                        
+  - Reference genome and transcriptome FASTAs                        
   - Reference genome GTF and GFF3                 
-  - Short-read RNA-seq and WGS-seq FASTQ sequencing files for each individual from two different conditions (minimum # samples recommended n=30 for each condition)               
+  - RNA-seq and WGS-seq FASTQ sequencing files for each individual from two different conditions ( recommend n>=30 sample size for each condition)               
   - Metadata CSV file.  See [NOTE](#note-metadata) below for more information.                    
   
 
@@ -252,17 +253,18 @@ Every per-sample step also writes `logs/` and, with `--array`, `summary_parts/`.
 
 ### f. <u>Identify RNA-specific variants</u>                 
 
-  - <b>Step 11:</b> Match RNA and WGS variant call sites for each individual.               
+  - <b>Step 12:</b> Match RNA and WGS variant call sites for each individual.               
     If PON or germline resource were used during WGS `--align`, those sites should also be masked in RNA
     to reduce false positives.                
     
   <b>Usage:</b> ```tarva analysispipe rna-unique --help ```
   
 
-            
-
+          
 
 ## <b>2. <a id="part-two"></a>Local DB Build</b>                
+
+To reduce the number of times large files are opened and parsed during data analysis, TARVa builds a database for querying.             
 
 
 

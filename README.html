@@ -359,18 +359,15 @@ display: none;
 <div id="project-overview" class="section level2">
 <h2>Project Overview</h2>
 <p><a href="#transcript-analysis-of-rna-variants-tarva"><strong>TARVa</strong></a>
-is a tool which enables analysis of variant calls from raw RNA
+is a workflow which enables analysis of variant calls from raw RNA
 sequencing data, taking into consideration both depth of read and length
 of transcript, and scans for all variant call-types in a strand-aware
-fashion. Starting with a global overview, the pipeline moves through
-non-hierarchical stratification of the data, ending with local,
-per-position comparisons across tissue types and conditions. The
-workflow is set up for use with paired-sample raw RNAseq and whole
-genome sequencing files (fastq) from more than one condition and/or
-tissue from diploid organisms, and covers data preprocessing in addition
-to the main TARVa analysis pipeline.<br />
-<strong>NOTE:</strong> Parts or all of the workflow, algorithm(s), and
-other components of this project are patent pending.</p>
+fashion.</p>
+<p>The workflow is set up for use with paired-sample raw RNAseq and
+whole genome sequencing files (fastq) from more than one condition
+and/or tissue from diploid organisms.</p>
+<p><strong>NOTE:</strong> Parts or all of the workflow, algorithm(s),
+and other components of this project are patent pending.</p>
 <p>The workflow contains three main pipelines to be run
 consecutively:<br />
 1. <a href="#part-one">Read QC and Data Processing</a><br />
@@ -415,13 +412,13 @@ first part of this pipeline. The <a href="tarva_env.yml">tarva</a>
 environment should be activated for the last step.</p>
 <p>Input Files:</p>
 <ul>
-<li>Reference genome FASTA<br />
+<li>Reference genome and transcriptome FASTAs<br />
 </li>
 <li>Reference genome GTF and GFF3<br />
 </li>
-<li>Short-read RNA-seq and WGS-seq FASTQ sequencing files for each
-individual from two different conditions (minimum # samples recommended
-n=30 for each condition)<br />
+<li>RNA-seq and WGS-seq FASTQ sequencing files for each individual from
+two different conditions ( recommend n&gt;=30 sample size for each
+condition)<br />
 </li>
 <li>Metadata CSV file. See <a href="#note-metadata">NOTE</a> below for
 more information.</li>
@@ -711,7 +708,7 @@ VCF files.</li>
 <div id="f.-identify-rna-specific-variants" class="section level3">
 <h3>f. <u>Identify RNA-specific variants</u></h3>
 <ul>
-<li><b>Step 11:</b> Match RNA and WGS variant call sites for each
+<li><b>Step 12:</b> Match RNA and WGS variant call sites for each
 individual.<br />
 If PON or germline resource were used during WGS <code>--align</code>,
 those sites should also be masked in RNA to reduce false positives.</li>
@@ -721,6 +718,8 @@ those sites should also be masked in RNA to reduce false positives.</li>
 </div>
 <div id="local-db-build" class="section level2">
 <h2><b>2. <a id="part-two"></a>Local DB Build</b></h2>
+<p>To reduce the number of times large files are opened and parsed
+during data analysis, TARVa builds a database for querying.</p>
 </div>
 <div id="data-analysis" class="section level2">
 <h2><b>3. <a id="part-three"></a>Data Analysis</b></h2>
