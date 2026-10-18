@@ -264,19 +264,41 @@ Every per-sample step also writes `logs/` and, with `--array`, `summary_parts/`.
 
 ## <b>2. <a id="part-two"></a>Local DB Build</b>                
 
-To reduce the number of times large files are opened and parsed during data analysis, TARVa builds a database for querying.             
+To reduce the number of times large files are opened and parsed during data analysis, TARVa builds a database for querying.                   
+It is recommended to run database-building commands in the order which they are shown below.                  
+
 
 <details>             
 
-<summary><strong> TARVa Local DB ERD (click to expand)</strong></summary>                    
+<b><a id="database-schema"></a></b><summary><strong> TARVa Local DB ERD (click to expand)</strong></summary>                    
 
 <img src="tarva_localdb_erd.png" alt="TARVa local database ERD" width="900">
 
 </details>              
 
-<blank></blank>
+<blank></blank>                       
 
-## <b>3. <a id="part-three"></a>Data Analysis</b>   
+* Resolve naming conventions across the various reference files                   
+  
+<b>Usage:</b> ```tarva dbpipe annotate --help ```                     
+
+* Populate database tables according to the database [schema](#database-schema)                 
+
+<b>Usage:</b> ```tarva dbpipe load-samples --help ```                 
+<b>Usage:</b> ```tarva dbpipe load-calls --help ```                 
+<b>Usage:</b> ```tarva dbpipe load-expression --help ```                    
+
+
+## <b>3. <a id="part-three"></a>Data Analysis</b>                 
+
+This is the pipeline that conducts key analyses and creates figures and tables.   
+It is recommended to run database-building commands in the order which they are shown below.                
+
+
+* Run initial counts analysis                     
+
+<b>Usage:</b> ```tarva analysispipe gene-tests --help ```                 
+
 
 ## <b>4. <a id="part-optional"></a>Optional Modules</b>             
 
