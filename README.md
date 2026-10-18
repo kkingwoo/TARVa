@@ -266,7 +266,15 @@ Every per-sample step also writes `logs/` and, with `--array`, `summary_parts/`.
 
 To reduce the number of times large files are opened and parsed during data analysis, TARVa builds a database for querying.             
 
+<details>             
 
+<summary><strong> TARVa Local DB ERD (click to expand)</strong></summary>                    
+
+<img src="tarva_localdb_erd.png" alt="TARVa local database ERD" width="900">
+
+</details>              
+
+<blank></blank>
 
 ## <b>3. <a id="part-three"></a>Data Analysis</b>   
 
@@ -284,7 +292,7 @@ To reduce the number of times large files are opened and parsed during data anal
 
 - [X] Data QC (10/9/2026)                 
 - [X] Data processing (10/9/2026)                 
-- [] DB build 
+- [X] DB build (10/17/2026)
 - [] Data analysis 
 - [] Other              
 

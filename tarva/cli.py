@@ -13,6 +13,7 @@ Subparsers:
 
         `tarva prep-reference --ref <genome.fa[.gz]> [--star-index DIR] [--bwa-index]`
 
+
     -qc: check read lengths, run fastQC and Trimmomatic, remove low quality tiles if needed
         ** Can run this more than once, until reads are satisfactorily cleaned for downstream analysis **
 
@@ -27,26 +28,42 @@ Subparsers:
         NOTE: `align` takes the .gtf; `assemble` and `novel-transcripts` need the
         .gff. StringTie and gffcompare share a parser that rejects the NCBI .gtf
 
+        In order:
+        
+        1.
         `tarva stringtiepipe align --metadata <meta.csv> --qc-output <qc_dir>
         --output <firstpass_dir> --ref <genome.fa> --star-index DIR
         --gtf <annotation.gtf> [--threads N] [--jobs N] [--hpc]`
+        
+        2.
         `tarva stringtiepipe assemble --metadata <meta.csv> --aligned <firstpass_dir>
         --output <assembly_dir> --gtf <annotation.gff>
         --strandedness rf|fr|unstranded [--stringtie-bin PATH] [--jobs N] [--hpc]`
+        
+        3.
         `tarva stringtiepipe novel-transcripts --assembly <assembly_dir>
         --gtf <annotation.gff> --ref <genome.fa> --output <novel_dir>
         [--gffcompare-bin PATH] [--gffread-bin PATH]`
 
     - wgseqpipe: WGS alignment, GATK preprocessing, panel of normals, variants
 
+        In order:
+        
+        1.
         `tarva wgseqpipe align --metadata <meta.csv> --qc-output <qc_dir>
         --output <aligned_dir> --ref <genome.fa> [--array] [--hpc]`
+        
+        2.
         `tarva wgseqpipe preprocess --metadata <meta.csv> --qc-output <qc_dir>
         --aligned <aligned_dir> --output <preprocessed_dir> --ref <genome.fa>
         [--known-sites <vcf>] [--array] [--hpc]`
-        `tarva wgseqpipe pon --metadata <meta.csv> --preprocessed <preproc_dir>
+       
+        3. (optional)
+       `tarva wgseqpipe pon --metadata <meta.csv> --preprocessed <preproc_dir>
         --output <pon_dir> --ref <genome.fa> --control-group <value>
         [--existing-pon <vcf>] [--array] [--hpc]`
+        
+        4.
         `tarva wgseqpipe variants --metadata <meta.csv> --preprocessed <preproc_dir>
         --output <vcf_dir> --ref <genome.fa> [--panel-of-normals <pon.vcf.gz>]
         [--array] [--hpc]`
@@ -54,21 +71,66 @@ Subparsers:
     - rnaseqpipe: two-pass STAR alignment and GATK preprocessing for RNA
         variant calling; `preprocess` shares tarva/gatk_common.py with wgseqpipe
 
+        In order:
+
+        1.
         `tarva rnaseqpipe align --metadata <meta.csv> --qc-output <qc_dir>
         --output <twopass_dir> --ref <combined_reference.fa> --star-index DIR [--array]`
+        
+        2.
         `tarva rnaseqpipe preprocess --metadata <meta.csv> --qc-output <qc_dir>
         --aligned <twopass_dir> --output <preprocessed_dir> --ref <combined_reference.fa>
         [--known-sites <vcf>] [--array] [--hpc]`
+        
+        3.
         `tarva rnaseqpipe variants --metadata <meta.csv> --preprocessed <preproc_dir>
         --output <vcf_dir> --ref <combined_reference.fa> [--array] [--hpc]`
 
     - analysispipe: pair the WGS and RNA call sets into the RNA-specific,
-        panel-masked variant set the database build consumes
+        panel-masked variant set used to build the local database.
 
         `tarva analysispipe rna-unique --metadata <meta.csv>
         --wgs-variants <wgs_vcf_dir> --rna-variants <rna_vcf_dir>
         --output <rna_unique_dir> [--pon <pon.vcf.gz>]
         [--germline-resource <af-only.vcf.gz>] [--jobs N] [--overwrite]`
+
+        The per-gene tests that read the database tables and run initial analysis
+
+        `tarva analysispipe gene-tests --db <TARVa.db>
+        [--case-condition <label>] [--min-depth 20]
+        [--group-threshold 0.75] [--overwrite]`
+
+    - dbpipe: build the TARVa database. Each step is the single writer of its
+        own tables.
+
+        In order:
+
+        1.
+        `tarva dbpipe annotate --gtf <merged.gtf> --db <TARVa.db>
+        [--attrs <knownAttrs.tsv>] [--attrs-gene-name-column transcriptName]
+        [--transcriptome-fasta <transcripts.fa>]
+        [--assembly-report <GCF_..._assembly_report.txt>] [--drop-molecules MT,Y]
+        [--keep-versions] [--min-attrs-match 0.5] [--overwrite]`
+
+        2.
+        `tarva dbpipe load-samples --metadata <meta.csv> --db <TARVa.db>
+        [--id-column individualID] [--condition-column group]
+        [--overwrite]`
+
+        3.
+        `tarva dbpipe load-calls --rna-unique <rna_unique_dir> --db <TARVa.db>
+        [--min-depth 20] [--overwrite]`
+
+        4.
+        `tarva dbpipe load-expression --stringtie-dir <assembly_dir>
+        --db <TARVa.db> [--overwrite]`
+
+        The per-gene tests that read those tables are analysis, not loading, so
+        they live in analysispipe:
+
+        `tarva analysispipe gene-tests --db <TARVa.db>
+        [--case-condition <label>] [--min-depth 20]
+        [--group-threshold 0.75] [--overwrite]`
 """
 
 import argparse
@@ -88,6 +150,11 @@ from tarva.stringtiepipe import align as stringtie_align
 from tarva.stringtiepipe import assemble as stringtie_assemble
 from tarva.stringtiepipe import novel_transcripts as stringtie_novel_transcripts
 from tarva.analysispipe import rna_unique as analysis_rna_unique
+from tarva.analysispipe import gene_tests as analysis_gene_tests
+from tarva.dbpipe import annotate as db_annotate
+from tarva.dbpipe import load_samples as db_load_samples
+from tarva.dbpipe import load_calls as db_load_calls
+from tarva.dbpipe import load_expression as db_load_expression
 
 WGSPIPE_STEPS = {
         "align": wgs_align,
@@ -110,6 +177,14 @@ STRINGTIEPIPE_STEPS = {
 
 ANALYSISPIPE_STEPS = {
         "rna-unique": analysis_rna_unique,
+        "gene-tests": analysis_gene_tests,
+        }
+
+DBPIPE_STEPS = {
+        "annotate": db_annotate,
+        "load-samples": db_load_samples,
+        "load-calls": db_load_calls,
+        "load-expression": db_load_expression,
         }
 
 def build_parser():
@@ -167,6 +242,17 @@ def build_parser():
     analysispipe_sub = analysispipe_parser.add_subparsers(dest="step", required=True)
     for step_name, step_module in ANALYSISPIPE_STEPS.items():
         step_parser = analysispipe_sub.add_parser(
+                step_name, help=step_module.__doc__.strip().splitlines()[0]
+                )
+        step_module.add_arguments(step_parser)
+        step_parser.set_defaults(func=step_module.run)
+
+    dbpipe_parser = subparsers.add_parser(
+            "dbpipe", help="Build the TARVa database from the pipeline's output"
+            )
+    dbpipe_sub = dbpipe_parser.add_subparsers(dest="step", required=True)
+    for step_name, step_module in DBPIPE_STEPS.items():
+        step_parser = dbpipe_sub.add_parser(
                 step_name, help=step_module.__doc__.strip().splitlines()[0]
                 )
         step_module.add_arguments(step_parser)
