@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tarva"
+version = "0.2.0"
+description = "Transcriptome-Anchored RNA Variant analysis: matched RNA-seq and WGS variant calling, database build, and the global and local analyses"
+readme = "INSTALL.md"
+# 3.7 because that is what the code supports, not a preference: the package
+# uses no 3.8+ syntax -- no walrus, no builtin generics, no __future__ imports
+# -- and the development cluster runs 3.7.12. pip ENFORCES this field, so a
+# higher floor does not merely advise against an older interpreter, it refuses
+# to install on one. Python 3.7 is end-of-life, so a newer interpreter is
+# better where there is a choice; it is simply not required.
+requires-python = ">=3.7"
+license = { file = "LICENSE" }
+authors = [{ name = "kkingwoo", email = "kkingwoo@charlotte.edu" }]
+keywords = ["bioinformatics", "RNA editing", "variant calling", "RNA-seq", "WGS"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
+# The database build, the analysis steps and the two Python figures need only
+# these. Lower bounds are the versions the pipeline has actually been run on
+# (Python 3.7.12 / pandas 1.3.5 / numpy 1.21.5 on the development cluster), so
+# they are floors rather than preferences. No upper pins: nothing here uses an
+# API that pandas 2 or numpy 2 removed.
+#
+# The upstream steps -- qc, stringtiepipe, wgseqpipe, rnaseqpipe -- additionally
+# need STAR, bwa, samtools, gatk, stringtie, gffcompare, gffread, fastqc and
+# trimmomatic, none of which pip can install. See environment.yml and INSTALL.md.
+dependencies = [
+    "pandas>=1.3",
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "matplotlib>=3.4",
+]
+
+[project.urls]
+Homepage = "https://github.com/kkingwoo/TARVa"
+Source = "https://github.com/kkingwoo/TARVa"
+
+[project.scripts]
+tarva = "tarva.cli:main"
+
+# This repository holds the published analysis alongside the tool -- legacy
+# scripts, result CSVs, figure sources. Only the `tarva` package is installed,
+# named explicitly rather than discovered, so nothing else is ever picked up by
+# accident.
+[tool.setuptools]
+packages = [
+    "tarva",
+    "tarva.dbpipe",
+    "tarva.analysispipe",
+    "tarva.stringtiepipe",
+    "tarva.rnaseqpipe",
+    "tarva.wgseqpipe",
+]

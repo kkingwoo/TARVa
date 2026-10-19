@@ -7,39 +7,32 @@ qc: check raw FASTQ read lengths, run FastQC, and trim reads with Trimmomatic
         [--minlen-fraction F] [--rna-minlen N] [--list-adapters]
         [--hpc] [--conda-env NAME] [--directives-dict "{'partition': ..., ...}"]`
 
-    FASTQ files are expected to live in a directory tree under `--input`,
-    produced by `tarva sort-input`: <input>/WGS/<group>/<adapter_stem>/... and
-    <input>/RNA/<group>/<adapter_stem>/... (see metadata.py for details).
-    Which files belong to which sample within that tree is determined from
-    `--metadata` -- the WGS/RNA columns' prefixes are matched against
-    filenames in the resolved subfolder.
+    Re-run as needed until the reads look clean: each step named in --steps
+    overwrites its own output, and steps not named are skipped with their
+    previous output left untouched.
 
-    Steps (select a subset with --steps):
-        1.) read-lengths - observed read length is checked per FASTQ file
-            (read_lengths.csv). Up to --jobs files are scanned concurrently.
-            With --full every read is scanned instead of the first
-            --sample-size, which is what downstream steps needing an exact
-            per-file length should be run with.
-        2.) fastqc - FastQC is run per (seq_type, group, adapter) group,
-            writing into the mirrored tree
-            <output>/fastqc/WGS|RNA/<group>/<adapter_stem>/
-            (fastqc_summary.csv summarizes across all of them). Up to --jobs
-            groups are run concurrently, each FastQC invocation itself using
-            --threads internally.
-        3.) trim - Trimmomatic is run per paired sample, using the observed
-            read length to set MINLEN (round(--minlen-fraction * read_length)).
-            RNA-seq libraries that arrive already trimmed to variable lengths
-            can opt out of that with --rna-minlen, which sets an absolute
-            MINLEN for RNA-seq only. The adapter FASTA used for each sample/
-            seq-type comes from its wgs_barcode/rna_barcode metadata value.
-            Output mirrors the same tree:
-            <output>/trimmed/WGS|RNA/<group>/<adapter_stem>/. Up to --jobs
-            samples are trimmed concurrently, each Trimmomatic invocation
-            itself using --threads internally.
+    Input:  the metadata CSV, and the FASTQ tree `tarva sort-input` wrote --
+            <input>/WGS|RNA/<group>/<adapter_stem>/. Which files belong to
+            which sample is decided from the metadata's WGS/RNA prefixes,
+            matched against filenames in the resolved subfolder.
+    Output: three steps, selectable with --steps:
 
-    Re-run as needed until reads look clean. Each step named in --steps
-    overwrites its own output on each run; steps not named are skipped and
-    their previous output is left untouched.
+            1.) read-lengths  the observed read length per FASTQ file, in
+                read_lengths.csv. With --full every read is scanned instead of
+                the first --sample-size, which is what any step needing an
+                exact per-file length wants.
+            2.) fastqc  FastQC per (seq_type, group, adapter) group, into the
+                mirrored tree <output>/fastqc/WGS|RNA/<group>/<adapter_stem>/,
+                with fastqc_summary.csv across all of them.
+            3.) trim  Trimmomatic per paired sample, into
+                <output>/trimmed/WGS|RNA/<group>/<adapter_stem>/. MINLEN is
+                round(--minlen-fraction * read_length), or an absolute
+                --rna-minlen for RNA-seq, for libraries that arrive already
+                trimmed to variable lengths. Each sample's adapter FASTA comes
+                from its wgs_barcode / rna_barcode value.
+
+            Up to --jobs files, groups or samples are handled concurrently,
+            each FastQC or Trimmomatic invocation itself using --threads.
 """
 
 import gzip, subprocess, sys
@@ -91,7 +84,7 @@ def add_arguments(parser):
                 "output left untouched -- e.g. `--steps read-lengths` refreshes "
                 "read_lengths.csv without re-running FastQC or overwriting trimmed/. "
                 "Skipping read-lengths requires read_lengths.csv to already exist in "
-                "--output."
+                "--output, since Trimmomatic's MINLEN is derived from it."
                 ),
             )
     parser.add_argument("--threads", type=int, default=4, help="Threads for FastQC/Trimmomatic (default: 4)")
@@ -310,6 +303,11 @@ def _measure_read_lengths(all_files, full, sample_size, jobs):
     Measure read length for every (sample, seq_type, path) in `all_files`, up
     to `jobs` files at a time.
 
+    Decompressing and scanning FASTQ is CPU-bound rather than subprocess-bound,
+    so this uses processes, not the thread pool FastQC/Trimmomatic use. With
+    --full over a full cohort that is the difference between minutes and hours.
+    Results are sorted afterwards so the CSV is deterministic regardless of the
+    order jobs happen to finish in.
     """
     rows = []
     with ProcessPoolExecutor(max_workers=jobs) as pool:
@@ -581,6 +579,8 @@ def _submit_hpc(args):
     command_parts = [
             # -u: stdout is block-buffered when redirected to a file, so a job
             # killed at the wall clock discards everything still in the buffer.
+            # The first QC run timed out and left an empty .o for exactly this
+            # reason, with no record of which samples had finished.
             "python", "-u", "-m", "tarva.cli", "qc",
             "--metadata", str(args.metadata),
             "--input", str(args.input),

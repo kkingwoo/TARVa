@@ -12,21 +12,19 @@ dbpipe annotate: load gene, transcript and exon from the merged GTF
         [--attrs-tsl-column supportLevel] [--attrs-ccds-column ccdsId]
         [--min-attrs-match 0.5] [--overwrite]`
 
-The annotation layer, and the first step of the build. Everything else in
-dbpipe depends on these three tables.
+The first step of the build, and what every later step resolves against. A
+locus with no reference gene becomes ONE gene row keyed on the locus id with
+`novel = 1`, while a novel transcript in a locus carrying exactly one
+reference gene inherits that gene.
 
-A locus with no reference gene at all becomes ONE gene row keyed on the locus
-id with `novel = 1`. A novel transcript inside a locus carrying exactly one
-reference gene inherits it -- that is the novel-isoform-of-a-known-gene case,
-and the common one. 
-
-Records this build cannot key are dropped and counted, not fatal: a record
-with no transcript_id cannot be joined or coordinate-mapped, and one with no
-gene_id has not been placed at a locus. An annotation is allowed to contain
-records this build has no use for. The `annotate.n_dropped_*` keys are the
-only record of how many, so they are worth reading after a run.
-
-Writes: gene, transcript, exon. Records annotate.* keys in run_meta.
+Input:  the merged GTF; optionally an attribute table supplying biotype, TSL
+        and CCDS, a transcript FASTA for transcript lengths, and an NCBI
+        assembly report to restrict which contigs are kept.
+Output: the gene, transcript and exon tables, and annotate.* keys in run_meta
+        -- including annotate.n_dropped_*, which counts records this build
+        cannot key (no transcript_id, so unjoinable; or no gene_id, so placed
+        at no locus). Those are dropped and counted rather than fatal, so the
+        dropped counts are worth reading after a run.
 """
 
 import csv

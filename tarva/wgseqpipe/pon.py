@@ -1,5 +1,10 @@
 """
-wgseqpipe pon: build a panel of normals from the control group
+wgseqpipe pon: build a panel of normals from the control group.
+
+Which group is the control is a flag, not a convention: --control-group is
+validated against the two values actually present in the metadata. The panel
+is then applied to BOTH groups by `wgseqpipe variants`, so a recurrent
+artefact cannot create a between-group asymmetry.
 
     `tarva wgseqpipe pon --metadata <meta.csv> --preprocessed <preproc_dir>
         --output <pon_dir> --ref <genome.fa[.gz]> --control-group <value>
@@ -11,29 +16,20 @@ wgseqpipe pon: build a panel of normals from the control group
         [--hpc] [--array] [--array-concurrency N] [--conda-env NAME]
         [--directives-dict "{...}"]`
 
-Three stages, selectable with --steps, because only the first fans out:
+Input:  the preprocessed BAMs of the control group, and the reference.
+        `--existing-pon <vcf>` instead adopts a panel built elsewhere and
+        skips all three stages, linking it to <output>/pon.vcf.gz so the next
+        command is the same either way.
+Output: three stages, selectable with --steps because only the first fans out:
 
-  call    Mutect2 on each control sample
-          -> <output>/calls/<individualID>_pon.vcf.gz
-  import  GenomicsDBImport of those VCFs  -> <output>/pon_db/
-  create  CreateSomaticPanelOfNormals     -> <output>/pon.vcf.gz
+            call    Mutect2 in tumour-only mode on each control sample
+                    -> <output>/calls/<individualID>_pon.vcf.gz
+            import  GenomicsDBImport of those VCFs  -> <output>/pon_db/
+            create  CreateSomaticPanelOfNormals     -> <output>/pon.vcf.gz
 
-With --hpc --array the `call` stage becomes a job array and `import,create` are
-submitted as a second job with 'dependency': 'afterok:<array job id>', so the
-whole thing is one command.
-
-**Which group is the control is a flag, not a convention.** `--control-group`
-is validated against the two values actually present in the metadata, so there
-is no hardcoded "Control" string to silently miss. See wgseqpipe/variants.py for
-the other half of this: the PON is applied to BOTH groups.
-
-**Building from the control group is the default, not the only option.**
-`--existing-pon <vcf>` adopts a panel built elsewhere -- downloaded from a different
-source or one from a previous run -- and skips all three stages.
-The adopted panel is linked into
-<output>/pon.vcf.gz alongside its index, so the command that follows is the same
-whichever way the panel was obtained.
-
+        With --hpc --array the `call` stage becomes a job array and
+        `import,create` are submitted as a second job depending on it, so the
+        whole thing stays one command.
 """
 
 import csv
@@ -207,7 +203,7 @@ def adopt_existing_pon(existing, output_dir):
 
 
 def _call_one(sample, args, ref, calls_dir):
-    """Mutect2 on one control."""
+    """Tumour-only Mutect2 on one control."""
     out_vcf = calls_dir / f"{sample.individual_id}{PON_VCF_SUFFIX}"
     row = {"individualID": sample.individual_id, "group": sample.group,
            "status": "FAILED", "vcf": "", "error": ""}
@@ -330,8 +326,8 @@ def run_create(args, ref):
                 f"wgseqpipe pon: {db_path} not found. Run --steps import first."
                 )
     pon_vcf = output_dir / PON_NAME
-    # No --min-sample-count: legacy passed none and took GATK's default of 2,
-    # so emitting nothing reproduces it exactly.
+    # No --min-sample-count unless asked for: emitting nothing takes GATK's
+    # own default of 2.
     gatk_args = ["-R", ref, "-V", f"gendb://{db_path}", "-O", pon_vcf]
     if args.germline_resource:
         gatk_args += ["--germline-resource", args.germline_resource]
@@ -344,6 +340,8 @@ def run_create(args, ref):
 
 
 def run(args):
+    # Adopting a panel is pure filesystem work -- no GATK, no BAMs -- so it runs
+    # here even under --hpc rather than costing a scheduler round trip.
     if args.existing_pon:
         adopt_existing_pon(args.existing_pon, args.output)
         return
@@ -418,6 +416,9 @@ def _submit_hpc(args):
     """
     Submit the requested stages.
 
+    With --array the fan-out stage and the two aggregate stages cannot share one
+    job, so they become two: an array over the controls, and a single job holding
+    'dependency': 'afterok:<array id>'. afterok on an array waits for every task.
     """
     sbatch_kwargs, extra_directives = split_directives(args.directives_dict)
     sbatch_kwargs.setdefault("cpus_per_task", 4 * args.jobs)

@@ -1,0 +1,44 @@
+# Full-pipeline environment: the external binaries pip cannot install, plus
+# TARVa's own Python dependencies.
+#
+#   conda env create -f environment.yml
+#   conda activate tarva
+#   pip install -e .
+
+
+name: tarva
+
+channels:
+  - conda-forge
+  - bioconda
+
+dependencies:
+  - python>=3.7
+  - pip
+
+  # TARVa's own requirements, same as pyproject.toml
+  - pandas>=1.3
+  - numpy>=1.21
+  - scipy>=1.7
+  - matplotlib>=3.4
+
+  # Read QC and trimming -- tarva qc
+  - fastqc
+  - trimmomatic
+
+  # Alignment -- tarva rnaseqpipe align, stringtiepipe align, wgseqpipe align
+  - star
+  - bwa
+  - samtools
+
+  # Variant calling and reference preparation -- tarva wgseqpipe, rnaseqpipe,
+  # prep-reference
+  - gatk4
+
+  # Transcript assembly and novel-transcript extraction -- tarva stringtiepipe
+  - stringtie
+  - gffcompare
+  - gffread
+
+  - pip:
+      - -e .

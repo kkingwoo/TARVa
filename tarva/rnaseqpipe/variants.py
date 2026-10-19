@@ -1,5 +1,13 @@
 """
-rnaseqpipe variants: HaplotypeCaller and filtering for RNA variant calls
+rnaseqpipe variants: call and filter RNA variants for every sample.
+
+Per sample: optional AnalyzeCovariates, then HaplotypeCaller, then
+VariantFiltration. The three filter expressions are exposed as flags rather
+than hardcoded:
+
+    QUAL < 25.0   -> qual_filt
+    QD   < 10.0   -> qual_depth_filt
+    DP   < 20     -> depth_filt
 
     `tarva rnaseqpipe variants --metadata <meta.csv> --preprocessed <preproc_dir>
         --output <vcf_dir> --ref <reference.fa[.gz]>
@@ -9,12 +17,23 @@ rnaseqpipe variants: HaplotypeCaller and filtering for RNA variant calls
         [--overwrite] [--hpc] [--array] [--array-concurrency N]
         [--directives-dict "{...}"]`
 
-Per sample: optional AnalyzeCovariates, then HaplotypeCaller, then
-VariantFiltration. Output is
-<output>/<group>/<individualID>/<individualID>_varcall_flt.vcf, which is the
-name TARVaCreation/OriginalBuild/checkRNA_againstWGS.py tests for with
-`f.endswith("varcall_flt.vcf")`.
+Input:  the preprocessed BAMs and the reference the two-pass alignment used.
+Output: <output>/<group>/<individualID>/<individualID>_varcall_flt.vcf per
+        sample, plus the raw HaplotypeCaller VCF and a summary CSV. This is
+        the RNA side `analysispipe rna-unique` reads.
 
+TWO THINGS TO LEAVE ALONE. The output is uncompressed on purpose, because the
+consumer matches on the `varcall_flt.vcf` suffix and would not see a
+`.vcf.gz`. And `--output-mode` defaults to EMIT_ALL_CONFIDENT_SITES, which
+emits confidently-called reference sites as well as variants: the VCF is far
+larger, which is the point, since the comparison asks whether a position was
+callable at all and not only whether it varied.
+
+`--analyze-covariates` is off by default. It renders its plots through R, and
+loading an R module alongside an active conda environment can break R through
+LD_LIBRARY_PATH shadowing. It produces a diagnostic PDF rather than pipeline
+output, so when enabled a failure is recorded in the summary and the sample
+continues.
 """
 
 import csv
@@ -30,12 +49,12 @@ from tarva.slurm_utils import (parse_directives_dict, split_directives, submit_j
                                write_sbatch_script)
 
 RAW_VCF_SUFFIX = "_haplo.vcf"
-# checkRNA_againstWGS.py:31 does f.endswith("varcall_flt.vcf") -- not .gz.
+# The consumer matches f.endswith("varcall_flt.vcf") -- not .gz.
 FILTERED_VCF_SUFFIX = "_varcall_flt.vcf"
 DEFAULT_OUTPUT_MODE = "EMIT_ALL_CONFIDENT_SITES"
-DEFAULT_QUAL_FILTER = 10.0
+DEFAULT_QUAL_FILTER = 25.0
 DEFAULT_QUAL_DEPTH_FILTER = 10.0
-DEFAULT_DEPTH_FILTER = 10
+DEFAULT_DEPTH_FILTER = 20
 
 SUMMARY_FIELDS = [
     "individualID", "group", "status", "filtered_vcf", "raw_vcf",
@@ -57,24 +76,26 @@ def add_arguments(parser):
                              "preprocess ran without --known-sites, or _splitncigar.bam if "
                              "it also ran with --read-group-repair never")
     parser.add_argument("--output-mode", default=DEFAULT_OUTPUT_MODE,
-                        help=f"HaplotypeCaller --output-mode (default: {DEFAULT_OUTPUT_MODE}, "
-                             "as legacy). EMIT_VARIANTS_ONLY gives a far smaller VCF but "
-                             "loses the ability to distinguish 'reference here' from 'not "
-                             "callable here' in the WGS/RNA comparison")
+                        help=f"HaplotypeCaller --output-mode (default: "
+                             f"{DEFAULT_OUTPUT_MODE}). EMIT_VARIANTS_ONLY gives a far "
+                             "smaller VCF but loses the ability to distinguish "
+                             "'reference here' from 'not callable here' in the WGS/RNA "
+                             "comparison")
     parser.add_argument("--analyze-covariates", action="store_true",
                         help="Also run AnalyzeCovariates on the BQSR table from preprocess, "
                              "producing a diagnostic PDF. Off by default: it renders through "
                              "R, and an R module loaded beside a conda env breaks on "
                              "LD_LIBRARY_PATH shadowing. Failures here are reported, not fatal")
     parser.add_argument("--qual-filter", type=float, default=DEFAULT_QUAL_FILTER,
-                        help=f"VariantFiltration QUAL threshold (default: {DEFAULT_QUAL_FILTER}, "
-                             f"as legacy); records below it get FILTER=qual_filt")
+                        help=f"VariantFiltration QUAL threshold (default: "
+                             f"{DEFAULT_QUAL_FILTER}); records below it get "
+                             f"FILTER=qual_filt")
     parser.add_argument("--qual-depth-filter", type=float, default=DEFAULT_QUAL_DEPTH_FILTER,
                         help=f"VariantFiltration QD threshold (default: "
-                             f"{DEFAULT_QUAL_DEPTH_FILTER}, as legacy) -> qual_depth_filt")
+                             f"{DEFAULT_QUAL_DEPTH_FILTER}) -> qual_depth_filt")
     parser.add_argument("--depth-filter", type=int, default=DEFAULT_DEPTH_FILTER,
-                        help=f"VariantFiltration DP threshold (default: {DEFAULT_DEPTH_FILTER}, "
-                             f"as legacy) -> depth_filt")
+                        help=f"VariantFiltration DP threshold (default: "
+                             f"{DEFAULT_DEPTH_FILTER}) -> depth_filt")
     parser.add_argument("--temp-dir", metavar="DIR", help="GATK temp directory")
     parser.add_argument("--java-heap", default=DEFAULT_JAVA_HEAP, metavar="SIZE",
                         help=f"GATK --java-options -Xmx (default: {DEFAULT_JAVA_HEAP})")
@@ -102,7 +123,11 @@ def add_arguments(parser):
 
 def filtration_args(args):
     """
+    The three filters, as (name, expression) pairs.
 
+    VariantFiltration pairs --filter-name with --filter-expression positionally,
+    so the two lists must stay in lockstep -- hence building them together here
+    rather than appending to one command list in two places.
     """
     pairs = [
         ("qual_filt", f"QUAL < {args.qual_filter}"),
@@ -144,6 +169,8 @@ def _variants_one(sample, args, ref):
                                   f"missing (preprocess ran without --known-sites?)")
                 print(f"WARNING: {sample.individual_id}: {row['warning']}", file=sys.stderr)
             else:
+                # Diagnostic only, and its R dependency is the fragile part of
+                # this environment, so a failure must not lose the call set.
                 try:
                     run_gatk("AnalyzeCovariates", ["-bqsr", recal_table, "-plots", pdf],
                              temp_dir=args.temp_dir, java_heap=args.java_heap)
@@ -152,8 +179,12 @@ def _variants_one(sample, args, ref):
                     row["warning"] = f"AnalyzeCovariates failed ({exc}); continuing"
                     print(f"WARNING: {sample.individual_id}: {row['warning']}",
                           file=sys.stderr)
+
+        # No -L, and none of GATK's RNA-specific options.
         hc_args = ["-R", ref, "-I", bam, "-O", raw_vcf,
                    "--output-mode", args.output_mode]
+        # Resume point: HaplotypeCaller is the expensive step, so a failure in
+        # VariantFiltration below should not discard it.
         if raw_vcf.is_file() and not args.overwrite:
             print(f"{sample.individual_id}: {raw_vcf.name} already present, "
                   f"skipping HaplotypeCaller")

@@ -1,7 +1,13 @@
 """
-Parses and validates input metadata CSV.
+Parses and validates the input metadata CSV, and resolves each sample's FASTQ
+paths before and after trimming.
 
-Input file must have the following required columns:
+Input:  the metadata CSV described below, plus the directory trees
+        `tarva sort-input` and `tarva qc` write.
+Output: a Metadata object holding one Sample per row, with the per-sample file
+        lookups the pipeline steps call.
+
+The CSV must have the following required columns:
     group        - contains exactly TWO distinct condition or tissue values
                    Example: tumor, peritumoral
     individualID - unique identifier for each individual
@@ -53,17 +59,18 @@ def parse_paired_tokens(value):
 
     These are the substrings that distinguish the forward from the reverse mate
     in a FASTQ filename -- "_1,_2" for ERR2814681_1.fastq.gz, "_R1_001,_R2_001",
-    "END1,END2".
+    "END1,END2". A flag rather than a constant, because the naming varies
+    between datasets.
     """
     parts = [p.strip() for p in str(value).split(",")]
     if len(parts) != 2 or not all(parts):
         raise argparse.ArgumentTypeError(
-                f"--paired must be two non-empty comma-separated strings, "
+                f"--paired must be two non-empty comma-separated tokens, "
                 f"e.g. '_1,_2' (got: {value!r})"
                 )
     if parts[0] == parts[1]:
         raise argparse.ArgumentTypeError(
-                f"--paired forward and reverse strings must differ (both were {parts[0]!r})"
+                f"--paired forward and reverse tokens must differ (both were {parts[0]!r})"
                 )
     return (parts[0], parts[1])
 
@@ -86,8 +93,11 @@ def _trimmed_dir(qc_output, seq_type, group, adapter_stem):
 
 def _match_trimmed(pattern, directory):
     """
-    Trimmomatic's paired output for one individual/seq-type.
+    Trimmomatic's paired output for one sample/seq-type.
 
+    The `*.paired.fastq.gz` glob both excludes the unpaired mates and stays
+    agnostic about the `.fastq.fastq` doubling in the current output names, so
+    fixing that doesn't invalidate an existing trimmed tree.
     """
     directory = Path(directory)
     pattern = str(pattern).strip()
@@ -100,6 +110,10 @@ def _classify_pair(files, pattern, paired_tokens, description):
     """
     Split `files` into (forward, reverse) using `paired_tokens`.
 
+    Tokens are matched against the part of the filename following the metadata
+    prefix, so a prefix that itself ends in a token-like string can't be
+    mistaken for a mate marker. Fails loudly rather than falling back on sort
+    order, which silently mispairs any scheme where the reverse mate sorts first.
     """
     fwd_token, rev_token = paired_tokens
     forward, reverse, unmatched = [], [], []
@@ -108,9 +122,9 @@ def _classify_pair(files, pattern, paired_tokens, description):
         is_fwd, is_rev = fwd_token in remainder, rev_token in remainder
         if is_fwd and is_rev:
             raise ValueError(
-                    f"{description}: {f.name} contains both --paired values "
+                    f"{description}: {f.name} contains both --paired tokens "
                     f"({fwd_token!r} and {rev_token!r}) after the prefix {pattern!r} -- "
-                    f"cannot tell which mate it is. Choose values that appear in only "
+                    f"cannot tell which mate it is. Choose tokens that appear in only "
                     f"one mate's filename."
                     )
         if is_fwd:

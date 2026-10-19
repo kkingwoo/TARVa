@@ -9,10 +9,16 @@ wgseqpipe align: BWA-mem alignment of trimmed WGS reads
         [--hpc] [--array] [--array-concurrency N] [--conda-env NAME]
         [--modules M1,M2] [--directives-dict "{...}"]`
 
-Input is the trimmed WGS tree under --qc-output (see metadata.py); output is
-<output>/<group>/<individualID>/<individualID>_wgs.bam, coordinate-sorted and
-indexed.
+BWA-mem pipes straight into samtools sort, with no intermediate SAM, and both
+return codes are checked -- bwa dying mid-stream otherwise leaves a
+truncated-but-valid BAM and exit 0.
 
+Input:  the trimmed WGS tree under --qc-output (see metadata.py) and a
+        reference with its BWA index already beside it (--build-index opts
+        into building a missing one, which takes 1-2 hours single-threaded).
+Output: <output>/<group>/<individualID>/<individualID>_wgs.bam,
+        coordinate-sorted and indexed, plus a summary CSV flushed per sample.
+        --array gives each sample its own SLURM task and its own wall clock.
 """
 
 import csv

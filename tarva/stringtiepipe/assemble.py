@@ -8,19 +8,32 @@ stringtiepipe assemble: the 3-round StringTie process
         [--threads N] [--jobs N] [--overwrite] [--work-dir DIR]
         [--hpc] [--conda-env NAME] [--modules M1,M2] [--directives-dict "{...}"]`
 
-Three rounds, per the methods:
+Three rounds:
     1.) round1 - StringTie per sample against the reference annotation
         (`-t -p -G -A -C -B` plus the --strandedness flag), writing
         <id>_round1.gtf
     2.) merge  - every sample's round-1 GTF merged into one updated
-        transcriptome (`--merge -G`), writing merged.gtf. 
-    3.) round3 - StringTie per sample again, this time against merged.gtf 
-        (`-m 50 -t -p -G -A -C -B -e` with required --strandedness flag), writing
-        <id>_round3.gtf plus .ctab tables downstream reads.
+        transcriptome (`--merge -G`), writing merged.gtf. This is a hard
+        barrier: it consumes all samples at once, so round1 must be complete
+        across the whole cohort before it runs.
+    3.) round3 - StringTie per sample again, this time against merged.gtf and
+        in estimation-only mode (`-m 50 -t -p -G -A -C -B -e` plus the
+        --strandedness flag), writing
+        <id>_round3.gtf plus the Ballgown .ctab tables downstream reads.
 
-Output is <output>/<group>/<individualID>/ per sample, with merged.gtf at the
-<output> root.
+Input:  the first-pass BAMs from `stringtiepipe align`, and the reference
+        annotation as a .gff -- StringTie and gffcompare share a parser that
+        rejects an NCBI .gtf. --strandedness is REQUIRED and has no default:
+        the wrong choice produces wrong assemblies with no error, so fill it
+        from the library prep.
+Output: <output>/<group>/<individualID>/ per sample, with merged.gtf at the
+        <output> root. Each sample gets its own directory so the Ballgown
+        .ctab files `-B` emits cannot collide; those tables are what
+        `dbpipe load-expression` reads.
 
+StringTie may live in its own conda environment, whose Python cannot run this
+CLI. The job runs under --conda-env and invokes StringTie by absolute path via
+--stringtie-bin rather than switching environments.
 """
 
 import csv
@@ -58,7 +71,10 @@ def add_arguments(parser):
     parser.add_argument("--gtf", required=True,
                         help="Reference annotation for round 1 and the merge; decompressed "
                              "first if it ends in .gz. Pass the GFF3 here, NOT the GTF given "
-                             "to `stringtiepipe align`. ")
+                             "to `stringtiepipe align` -- StringTie rejects the NCBI GTF with "
+                             "'Error: no valid ID found for GFF record' and exits within "
+                             "seconds for every sample, while STAR accepts it fine. NCBI "
+                             "names the GFF3 file *_genomic.gff.gz, not .gff3")
     parser.add_argument("--strandedness", required=True, choices=("rf", "fr", "unstranded"),
                         help="Library strandedness for rounds 1 and 3. 'rf' passes StringTie "
                              "--rf (fr-firststrand, e.g. dUTP protocols), 'fr' passes --fr "
@@ -73,36 +89,39 @@ def add_arguments(parser):
                         help="Comma-separated subset of rounds to run: "
                              + ", ".join(STEP_NAMES)
                              + " (default: all). Skipping a round requires its output to "
-                               "already be present in --output. ")
+                               "already be present in --output, since each round consumes "
+                               "the previous one's")
     parser.add_argument("--min-transcript-len", type=int, default=DEFAULT_MIN_TRANSCRIPT_LEN,
                         help=f"StringTie -m for round 3 (default: {DEFAULT_MIN_TRANSCRIPT_LEN}); "
-                             "round 1 does not set -m. ")
+                             "round 1 does not set -m, matching the methods")
     parser.add_argument("--work-dir",
                         help="Where to write the decompressed GTF if --gtf is gzipped "
                              "(default: alongside --gtf)")
     parser.add_argument("--threads", type=int, default=8,
                         help="StringTie -p per sample (default: 8)")
     parser.add_argument("--jobs", type=int, default=2,
-                        help="Samples to assemble concurrently (default: 2). ")
+                        help="Samples to assemble concurrently (default: 2). StringTie is far "
+                             "lighter on memory than STAR -- there is no genome index to load "
+                             "-- so concurrency is cheap here")
     parser.add_argument("--overwrite", action="store_true",
                         help="Re-run rounds for samples that already have output")
     parser.add_argument("--hpc", action="store_true",
                         help="Submit as a SLURM job instead of running locally")
     parser.add_argument("--conda-env", default="bio_qc",
                         help="Conda environment activated in the generated SLURM script "
-                             "(default: bio_qc) ")
+                             "(default: bio_qc -- runs the CLI itself)")
     parser.add_argument("--modules", default="",
                         help="Comma-separated HPC modules to load (default: none -- StringTie "
                              "comes from --stringtie-bin, not a module)")
     parser.add_argument("--directives-dict", dest="directives_dict",
                         type=parse_directives_dict, default={}, metavar="DICT",
                         help="SLURM sbatch directives as a Python dict literal, only used with "
-                             "--hpc. Example: \"{'partition': 'Mamba', 'mem': '32gb', "
+                             "--hpc. Example: \"{'partition': 'Orion', 'mem': '32gb', "
                              "'time': '12:00:00', 'cpus_per_task': 8}\"")
 
 
 def _parse_steps(raw):
-    """."""
+    """Same contract as qc.py's --steps: reject typos rather than silently no-op."""
     if str(raw).strip().lower() == "all":
         return set(STEP_NAMES)
     steps = {s.strip().lower() for s in str(raw).split(",") if s.strip()}
@@ -137,7 +156,7 @@ def _round_paths(sample, output_dir, round_label):
 
 
 def _count_transcripts(gtf):
-    """Sanity check transcript records in a StringTie GTF."""
+    """Transcript records in a StringTie GTF -- a cheap sanity number per sample."""
     gtf = Path(gtf)
     if not gtf.is_file():
         return ""
@@ -170,7 +189,8 @@ def _assemble_one(sample, aligned_root, output_dir, stringtie_bin, annotation, s
                   threads, round_label, min_transcript_len=None, estimate_only=False,
                   overwrite=False):
     """
-    One individual, one round.
+    One sample, one round. Failures become FAILED rows rather than exceptions,
+    so one bad sample doesn't abort a pool with hours of work in flight.
     """
     paths = _round_paths(sample, output_dir, round_label)
     try:
@@ -223,7 +243,8 @@ def _assemble_one(sample, aligned_root, output_dir, stringtie_bin, annotation, s
 
 def _run_round(args, meta, round_label, annotation, min_transcript_len, estimate_only):
     """
-    .
+    Fan a round out across --jobs samples, flushing the summary per sample so a
+    wall-clock kill still leaves a record of what finished.
     """
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -264,8 +285,12 @@ def _run_round(args, meta, round_label, annotation, min_transcript_len, estimate
 
 def _collect_round1_gtfs(meta, output_dir):
     """
-    The round-1 GTFs from each individual sample's path
+    The round-1 GTFs the merge consumes, built from expected per-sample paths.
 
+    Deliberately not a directory glob: the `-C` coverage output is also a
+    .gtf, so a glob would merge it in. Constructing the list from the sample
+    roster makes that impossible and also catches a missing sample rather than
+    quietly merging fewer.
     """
     gtfs, missing = [], []
     for sample in meta.samples:

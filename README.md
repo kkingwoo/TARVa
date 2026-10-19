@@ -22,14 +22,27 @@
   
   Due to resource requirements, it is recommended to use the tool's `--hpc` mode whenever possible.
 
-## Tools, Environments and Dependencies
-Python 3 is a requirement for this workflow, and three non-interchangeable conda environments are used: [__*bio_qc*__](bioqc_env.yml), [__*stringtie*__](stringtie_env.yml), [__*tarva*__](tarva_env.yml)                                                
-Installation of __star/2.7.11b__, __bwa/0.7.17__, and __R/4.5.1__ are also needed.            
+## <a id="part-install"></a>Install                
 
+TARVa is distributed as a Python package named `tarva`.              
 
- ![ ](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExOHYxdnZhM3pvdzZxeDY3b3FnbDRxeHJsZHlsNzE1Z3A4MjdqNmZwYyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3oKIPnAiaMCws8nOsE/giphy.gif)
+- Retrieve the project directory and install the package in place:                
 
-# .....UNDER CONSTRUCTION.....                             
+```bash
+git clone https://github.com/kkingwoo/TARVa
+cd TARVa
+pip install -e .
+conda env create -f environment.yml
+conda activate tarva
+tarva --help
+```
+
+NOTE: If tarva is not in PATH or cannot be installed as indicated above, the tools can still be run in the directory that holds the 'tarva' folder with conda environments
+[__*bio_qc*__](bioqc_env.yml), [__*stringtie*__](stringtie_env.yml), and [__*tarva*__](tarva_env.yml) installed.                                                
+Installation of __star/2.7.11b__, __bwa/0.7.17__, and __R/4.5.1__ is also needed. Run commands as:                  
+`python -m tarva.cli ...`                 
+
+SEE: [INSTALL.md](INSTALL.md) for more information.
 
 ## <b>1. <a id="part-one"></a>Read QC and Data Processing Pipeline </b>                  
 
@@ -39,9 +52,6 @@ The RNA-seq alignments are also assembled with __StringTie__ [[3]](#ref-stringti
 
 Data for both sequencing types are run through __GATK__ [[4]](#ref-gatk) short-variant discovery pipelines. Two filtered VCF files per individual are created, one for each
 sequencing type.   
-
-Activate the [bio_qc](bioqc_env.yml) environment for the first part of this pipeline. The [tarva](tarva_env.yml) environment should be activated for the last step.               
-
 
 Input Files:                    
 
@@ -265,73 +275,60 @@ Every per-sample step also writes `logs/` and, with `--array`, `summary_parts/`.
 ## <b>2. <a id="part-two"></a>Local DB Build</b>                
 
 To reduce the number of times large files are opened and parsed during data analysis, TARVa builds a database for querying.                   
-It is recommended to run database-building commands in the order which they are shown below.                  
 
 
-<details>             
-
-<b><a id="database-schema"></a></b><summary><strong> TARVa Local DB ERD (click to expand)</strong></summary>                    
-
-<img src="tarva_localdb_erd.png" alt="TARVa local database ERD" width="900">
-
+<details>
+<b><a id="database-schema"></a></b>
+<summary><strong>TARVa Local DB ERD (click to expand)</strong></summary>                   
+<img src="tarva_localdb_erd.png" alt="TARVa local database ERD" width="900">                    
+cite source                
 </details>              
 
 <blank></blank>                       
 
-* Resolve naming conventions across the various reference files                   
+* Populate database tables according to the database [schema](#database-schema)                   
   
-<b>Usage:</b> ```tarva dbpipe annotate --help ```                     
-
-* Populate database tables according to the database [schema](#database-schema)                 
-
-<b>Usage:</b> ```tarva dbpipe load-samples --help ```                 
-<b>Usage:</b> ```tarva dbpipe load-calls --help ```                 
-<b>Usage:</b> ```tarva dbpipe load-expression --help ```                    
+<b>Usage:</b> ```tarva dbpipe all --help ```                     
 
 
 ## <b>3. <a id="part-three"></a>Data Analysis</b>                 
 
-This is the pipeline that conducts key analyses and creates figures and tables.   
-It is recommended to run database-building commands in the order which they are shown below.                
+This is the pipeline that conducts key analyses and creates figures and tables.             
+Assesses global-level variant call load between conditions, within genes all variant call-types and across genes per variant call-type.               
+Filters genes into condition-enriched or shared categories, followed by assessing distributions of unique (site with variant call in only one individual across both conditions)               
+and common (site with variant call in two or more individuals which can be in a single condition and/or both conditions).             
+Finally, hones in on significant variant call-types, by type per gene, and highlights sites with significantly different proportions and/or counts.             
 
 
-* Run initial counts analysis                     
+Run all analyses:               
 
-<b>Usage:</b> ```tarva analysispipe gene-tests --help ```                 
+<b>Usage:</b> ```tarva analysispipe all --help ```
 
+For single analysis sets:                 
+
+<b>Usage:</b> ```tarva analysispipe --help```
+
+Python figures run in the [tarva](tarva/tarva_env.yml) environment:                
+
+```bash
+python figures/Fig1_filter_cascade.py --input-dir <results_dir>        
+python figures/Fig5_uniqueness_forest.py --input-dir <results_dir>
+```
+
+Figures created by R Markdown need R/4.5.1 with `tidyverse` and `patchwork` libraries installed are rendered as:              
+
+```
+rmarkdown::render("figures/Fig3_calltype_boxplot.Rmd",
+                  params = list(input_dir = "<results_dir>"))
+rmarkdown::render("figures/Fig4_tpm_variant_correlation.Rmd",
+                  params = list(input_dir = "<results_dir>"))
+```
 
 ## <b>4. <a id="part-optional"></a>Optional Modules</b>             
 
-
-
-
----------------------------------------------------------------
----------------------------------------------------------------                
-
-### [ * * * <b>CLI WIP</b> * * * ]               
-
-<b>Pipelines tested and incorporated:</b>                 
-
-- [X] Data QC (10/9/2026)                 
-- [X] Data processing (10/9/2026)                 
-- [X] DB build (10/17/2026)
-- [] Data analysis 
-- [] Other              
-
-
----------------------------------------------------------------
----------------------------------------------------------------
-
-### *We will return after the job is done. Stay tuned*                  
-
-
-<u>AI assistance with code</u>                    
-                
-**Original code and logic:**
-[![Quillx](https://raw.githubusercontent.com/qainsights/Quillx/main/badges/quillx-1.svg)](https://github.com/qainsights/Quillx)
-
-**Original code and logic converted to CLI:**
-[![Quillx](https://raw.githubusercontent.com/qainsights/Quillx/main/badges/quillx-3.svg)](https://github.com/qainsights/Quillx)                 
+------------                  
+------------
+                 
 
 ### References          
 1. <a id="ref-bwa"></a>Li, Heng, and Richard Durbin. “Fast and Accurate Short Read Alignment with Burrows–Wheeler Transform.” Bioinformatics 25, no. 14 (2009): 1754–60. https://doi.org/10.1093/bioinformatics/btp324.            
@@ -342,11 +339,25 @@ It is recommended to run database-building commands in the order which they are 
 
 4. <a id="ref-gatk"></a>Brouard, Jean-Simon, Flavio Schenkel, Andrew Marete, and Nathalie Bissonnette. “The GATK Joint Genotyping Workflow Is Appropriate for Calling Variants in RNA-Seq Experiments.” Journal of Animal Science and Biotechnology 10, no. 1 (2019): 44. https://doi.org/10.1186/s40104-019-0359-0.            
 
-5. <a id="stringtie-manual"></a><https://ccb.jhu.edu/software/stringtie/index.shtml?t=manual>
+5. <a id="stringtie-manual"></a><https://ccb.jhu.edu/software/stringtie/index.shtml?t=manual>                 
 
 
+------------            
+------------            
 
-                    
+
+<u>AI assistance with code</u>                    
+                
+**Original code and logic:**
+[![Quillx](https://raw.githubusercontent.com/qainsights/Quillx/main/badges/quillx-1.svg)](https://github.com/qainsights/Quillx)
+
+**Original code and logic converted to CLI:**
+[![Quillx](https://raw.githubusercontent.com/qainsights/Quillx/main/badges/quillx-3.svg)](https://github.com/qainsights/Quillx)
+
+
+------------
+------------
+
                     
 
 [License](LICENSE)

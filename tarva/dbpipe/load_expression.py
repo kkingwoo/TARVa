@@ -1,28 +1,20 @@
 """
-dbpipe load-expression: load per-transcript FPKM and TPM from the ctab tables
+dbpipe load-expression: load per-transcript FPKM and TPM into the expression
+table.
+
+TPM is computed over every row of a sample's table before any filtering, since
+it is a within-sample composition (TPM_i = FPKM_i / sum(FPKM) * 1e6) and
+filtering first would renormalise it over a subset.
 
     `tarva dbpipe load-expression --stringtie-dir <assembly_dir> --db <TARVa.db>
         [--overwrite]`
 
-Reads one Stringtie-output table per individual from
-<stringtie-dir>/<condition>/<rid>/t_data.ctab -- what `stringtiepipe assemble`
-round 3 writes with `-B` -- and fills `expression`.
-
-Keyed on **tid**, not on ref_id, because t_data.ctab is per transcript. Gene
-level expression is then a SUM over that gene's transcripts through
-`transcript`.
-
-`varcount` is deliberately NOT stored. It is
-`SELECT COUNT(*) FROM call WHERE individualID = ? AND ...` on its sites --
-derivable from `call`.
-
-**TPM is computed over every row of the ctab, before any filtering.** TPM is a
-within-sample composition: TPM_i = FPKM_i / sum(FPKM) * 1e6. Dropping rows
-first would renormalize over a subset and silently change every value, so the
-sum is taken over the whole quantified transcriptome and the filtering happens
-afterwards.
-
-Writes: expression. Records load_expression.* keys in run_meta.
+Input:  one Stringtie table per individual at
+        <stringtie-dir>/<condition>/<rid>/t_data.ctab, as `stringtiepipe
+        assemble` round 3 writes with -B, and a database that `annotate` and
+        `load-samples` have written.
+Output: the expression table, keyed per transcript, and load_expression.* keys
+        in run_meta.
 """
 
 import gzip

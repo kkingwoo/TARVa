@@ -1,18 +1,17 @@
 """
-dbpipe load-samples: load the metadata CSV into the individual table
+dbpipe load-samples: load the metadata CSV into the individual table.
+
+Every column of the CSV becomes a column of `individual` under its own name;
+nothing is renamed, reshaped or dropped.
 
     `tarva dbpipe load-samples --metadata <meta.csv> --db <TARVa.db>
         [--id-column individualID] [--condition-column group] [--overwrite]`
 
-The whole metadata file becomes the `individual` table, column names and all.
-Nothing is renamed, reshaped or dropped.
-
---id-column and --condition-column only IDENTIFY two columns; they do not
-rename them. Both names go into run_meta and are read back through
-`schema.individual_columns`. The condition column must hold exactly two
-distinct values.
-
-Writes: individual. Records load_samples.* keys in run_meta.
+Input:  the metadata CSV. --id-column and --condition-column identify two of
+        its columns without renaming them, and the condition column must hold
+        exactly two distinct values.
+Output: the individual table with a UNIQUE index on the identifier column,
+        and load_samples.* keys in run_meta.
 """
 
 from pathlib import Path
@@ -107,9 +106,8 @@ def validate(frame, args):
         raise SystemExit(
                 f"tarva dbpipe load-samples: {args.condition_column!r} holds "
                 f"{len(labels)} distinct value(s) ({', '.join(labels)}), and exactly "
-                f"{REQUIRED_CONDITIONS} are required. Every published test is a "
-                f"two-sample Mann-Whitney, so supporting k groups means choosing a "
-                f"different test -- new analysis rather than a load option.")
+                f"{REQUIRED_CONDITIONS} are required. The analysis steps compare two "
+                f"conditions, so more than two groups would need a different test.")
     return labels
 
 

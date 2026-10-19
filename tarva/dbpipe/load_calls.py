@@ -1,16 +1,19 @@
 """
-dbpipe load-calls: load site and call from the RNA-unique VCFs
+dbpipe load-calls: load the RNA-specific variant calls into the site and call
+tables.
+
+Each distinct position is resolved to one gene and strand, and each call is
+given its transcript-oriented call type, which is what the analysis steps read.
 
     `tarva dbpipe load-calls --rna-unique <dir> --db <TARVa.db>
         [--min-depth 20] [--overwrite]`
 
-The measurement layer. Reads one VCF per individual from
-<rna-unique>/<condition>/<rid>/<rid>_rna_unique.vcf -- the layout
-`analysispipe rna-unique` writes -- and fills the two tables every analysis
-reads.
-
-
-Writes: site, call. Records load_calls.* keys in run_meta.
+Input:  one VCF per individual at
+        <rna-unique>/<condition>/<rid>/<rid>_rna_unique.vcf, as `analysispipe
+        rna-unique` writes it, and a database that `annotate` and
+        `load-samples` have written.
+Output: the site and call tables, and load_calls.* keys in run_meta. No depth
+        filter is applied here; --min-depth is recorded for the analysis steps.
 """
 
 import gzip
@@ -138,9 +141,7 @@ def read_provenance(path):
 #----------------------------------------------------
 
 def sample_column(header_fields, rid, path):
-    """
-
-    """
+    """The index of this individual's sample column in the #CHROM line."""
     names = header_fields[9:]
     if not names:
         raise SystemExit(
@@ -297,8 +298,8 @@ def classify(ref, alt1, strand):
     if len(ref) != len(alt1):
         return "ins" if len(alt1) > len(ref) else "del"
     if len(ref) != 1:
-        # Equal-length, multi-base: an MNV, which the published label set has
-        # no category for. NULL rather than mislabelled as an indel.
+        # Equal-length, multi-base: an MNV, which has no call-type label. NULL
+        # rather than mislabelled as an indel.
         return None
     if strand not in ("+", "-"):
         return None

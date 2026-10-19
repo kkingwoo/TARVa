@@ -1,0 +1,194 @@
+---
+title: "TARVa Figure 3 -- variant call-type load by condition"
+author: "Kat J"
+output: html_document
+params:
+  input_dir: "."
+  output_file: "Fig3_calltype_boxplot.tiff"
+  case_condition: null
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Reads the two CSVs `tarva analysispipe gene-tests --output <dir>` writes and renders
+Figure 3. It computes nothing: every number plotted here was computed by that step, so
+the figure and the database cannot disagree.
+
+- `calltype_counts.csv` -- step 2b, one row per (call type, individual): the boxes
+- `calltype_tests.csv` -- step 1b, one row per call type: the stars and the effect sizes
+
+Set `input_dir` to the directory passed to `--output`. `case_condition` names which
+condition takes the case colour; left null, the alphabetically first label is used,
+matching `gene-tests`' own default.
+
+```{r plot_variant_sites, fig.width=12, fig.height=7, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+# 1. Load data files
+counts_df <- read_csv(file.path(params$input_dir, "calltype_counts.csv"),
+                      show_col_types = FALSE)
+tests_df <- read_csv(file.path(params$input_dir, "calltype_tests.csv"),
+                     show_col_types = FALSE)
+
+# The database column is a1type; the counts file calls it variant_call.
+tests_df <- tests_df %>% rename(variant_call = a1type)
+
+# The per-call-type test writes one row per call type per gene set. 
+if (n_distinct(tests_df$gene_set) > 1) {
+  stop("calltype_tests.csv holds more than one gene_set: ",
+       paste(unique(tests_df$gene_set), collapse = ", "),
+       ". Filter it to the set this figure should describe.")
+}
+
+conditions <- sort(unique(counts_df$condition))
+if (length(conditions) != 2) {
+  stop("calltype_counts.csv holds ", length(conditions),
+       " condition(s); Figure 3 compares exactly two.")
+}
+case_condition <- if (is.null(params$case_condition)) {
+  conditions[1]
+} else {
+  params$case_condition
+}
+if (!case_condition %in% conditions) {
+  stop("case_condition '", case_condition, "' is not in calltype_counts.csv. ",
+       "Found: ", paste(conditions, collapse = ", "))
+}
+reference_condition <- setdiff(conditions, case_condition)
+
+# 2. Assign significance stars from whichever p-value column step 1b used
+#
+# The `basis` column names it: adj_pvalue when a majority of call types
+# survived correction, p_value when only the nominal values did, and empty
+# when neither qualified.
+sig_basis <- unique(tests_df$basis)
+sig_basis <- sig_basis[!is.na(sig_basis) & sig_basis != ""]
+if (length(sig_basis) > 1) {
+  stop("calltype_tests.csv names more than one significance basis: ",
+       paste(sig_basis, collapse = ", "))
+}
+
+tests_df <- tests_df %>%
+  mutate(
+    sig_p = if (length(sig_basis) == 1) .data[[sig_basis]] else NA_real_,
+    sig_label = case_when(
+      sig_p < 0.001 ~ "***",
+      sig_p < 0.01  ~ "**",
+      sig_p < 0.05  ~ "*"
+    ),
+    effect_label = sprintf("r = %.2f", rbc)
+  )
+
+# 3. Define custom alphabetical factor order: nucleotides first, then del, then ins
+nuc_types <- sort(setdiff(unique(counts_df$variant_call), c("del", "ins")))
+custom_order <- c(nuc_types, "del", "ins")
+
+counts_df <- counts_df %>%
+  filter(variant_call %in% custom_order) %>%
+  mutate(
+    variant_call = factor(variant_call, levels = custom_order),
+    condition = factor(condition, levels = c(case_condition, reference_condition))
+  )
+
+# Calculate y-axis positions for significance annotations
+plot_range <- max(counts_df$`total sites`, na.rm = TRUE) -
+              min(counts_df$`total sites`, na.rm = TRUE)
+
+y_max_df <- counts_df %>%
+  group_by(variant_call) %>%
+  summarize(y_top = max(`total sites`, na.rm = TRUE), .groups = "drop") %>%
+  inner_join(tests_df, by = "variant_call") %>%
+  mutate(
+    y_pos_sig = y_top + plot_range * 0.10,
+    y_pos_effect = y_top + plot_range * 0.03
+  )
+
+# 4. Colorblind-friendly palette (Okabe-Ito), keyed to this dataset's own labels
+cb_palette <- setNames(c("#D55E00", "#56B4E9"),
+                       c(case_condition, reference_condition))
+point_palette <- setNames(c("#990000", "#0072B2"),
+                          c(case_condition, reference_condition))
+
+# 5. Generate Plot
+p <- ggplot(counts_df, aes(x = variant_call, y = `total sites`, fill = condition)) +
+  # Boxplots
+  geom_boxplot(
+    outlier.shape = NA,
+    alpha = 0.65,
+    color = "black",
+    width = 0.7,
+    position = position_dodge(width = 0.8)
+  ) +
+  # Overlay scatter points (darker points with jitter to stand out over boxplots)
+  geom_point(
+    aes(color = condition),
+    position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.8),
+    size = 1.8,
+    alpha = 0.9,
+    stroke = 0.3
+  ) +
+  # Significance annotations (*, **, ***)
+  geom_text(
+    data = y_max_df,
+    aes(x = variant_call, y = y_pos_sig, label = sig_label),
+    inherit.aes = FALSE,
+    size = 6.5,
+    fontface = "bold"
+  ) +
+  # Effect size annotations (rbc) shown at every x-position regardless of significance
+  geom_text(
+    data = y_max_df,
+    aes(x = variant_call, y = y_pos_effect, label = effect_label),
+    inherit.aes = FALSE,
+    size = 3.5,
+    fontface = "italic",
+    color = "gray30"
+  ) +
+  # Custom colors
+  scale_fill_manual(values = cb_palette) +
+  scale_color_manual(values = point_palette) +
+  # Formatting & labels
+  labs(
+    x = "Variant Call Type",
+    y = "Total Sites (per Sample)",
+    fill = "Condition"
+  ) +
+  guides(color = "none") + # Hide duplicate color legend for scatter points
+  theme_classic(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, size = 10),
+    axis.text.x = element_text(face = "bold", color = "black"),
+    legend.position = "top",
+    legend.title = element_text(face = "bold")
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0.02, 0.18)))
+
+# What this figure describes, recorded in the knitted document so a fallback
+# run is never mistaken for a filtered one.
+cat("gene set:  ", unique(tests_df$gene_set), "\n",
+    "stars from:", if (length(sig_basis) == 1) sig_basis else
+                   "nothing -- no basis reached significance", "\n",
+    "case:      ", case_condition, "\n",
+    "reference: ", reference_condition, "\n",
+    "call types:", nlevels(counts_df$variant_call), "\n",
+    "individuals per condition: ",
+    paste(sprintf("%s=%d", levels(counts_df$condition),
+                  tapply(counts_df$individualID, counts_df$condition,
+                         n_distinct)[levels(counts_df$condition)]),
+          collapse = ", "), "\n", sep = "")
+
+# Save plot directly to high-res TIFF
+ggsave(
+  filename = params$output_file,
+  plot = p,
+  width = 12,
+  height = 7,
+  dpi = 300,
+  units = "in"
+)
+
+p
+```

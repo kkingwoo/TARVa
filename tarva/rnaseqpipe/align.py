@@ -9,14 +9,20 @@ rnaseqpipe align: two-pass STAR alignment for RNA variant calling
         [--hpc] [--array] [--array-concurrency N] [--conda-env NAME]
         [--modules M1,M2] [--directives-dict "{...}"]`
 
-This is the SECOND of the pipeline's two STAR alignments. The first
-(`stringtiepipe align`) is run separately and those BAMs are created 
-specifically for Stringtie.
+This is the SECOND of the workflow's two STAR alignments. The first,
+`stringtiepipe align`, is run separately and its BAMs exist for StringTie.
 
-Input is the trimmed RNA tree under --qc-output; output is
-<output>/<group>/<individualID>/<individualID>_twopass.bam, which
-rnaseqpipe/preprocess.py reads via TWOPASS_BAM_SUFFIX below.
+--gtf is optional here, unlike on the first pass: --twopassMode Basic
+discovers junctions per sample, and supplying both the combined reference and
+an annotation of the same transcripts double-represents them and splits their
+reads.
 
+Input:  the trimmed RNA tree under --qc-output, a STAR index, and the
+        reference the index was built from -- normally the combined_reference.fa
+        that `stringtiepipe novel-transcripts` wrote.
+Output: <output>/<group>/<individualID>/<individualID>_twopass.bam, which
+        rnaseqpipe/preprocess.py reads via TWOPASS_BAM_SUFFIX below, plus a
+        summary CSV of STAR's own mapping statistics.
 """
 
 import csv
@@ -138,7 +144,8 @@ def _summary_row(sample, bam, sample_dir, status, error=""):
 def _align_one(sample, qc_output, output_dir, index_dir, gtf, sjdb_overhang,
                paired_tokens, threads, limit_bam_sort_ram, overwrite):
     """
-    One individual's two-pass alignment.
+    One sample's two-pass alignment. Failures become FAILED rows rather than
+    exceptions, so one bad sample doesn't abort a pool with hours in flight.
     """
     sample_dir = Path(output_dir) / sample.group / sample.individual_id
     final_bam = sample_dir / f"{sample.individual_id}{TWOPASS_BAM_SUFFIX}"

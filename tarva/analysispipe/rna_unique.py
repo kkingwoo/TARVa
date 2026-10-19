@@ -1,22 +1,25 @@
 """
-analysispipe rna-unique: RNA variants with no WGS counterpart, panel-masked
+analysispipe rna-unique: keep the RNA variants with no WGS counterpart, with
+panel sites masked out.
+
+Each individual's WGS and RNA VCF records are matched on coordinates, and
+every RNA variant at a position with no WGS record is kept. This is the
+RNA-specific set the database is built from.
 
     `tarva analysispipe rna-unique --metadata <meta.csv>
         --wgs-variants <wgs_vcf_dir> --rna-variants <rna_vcf_dir>
         --output <out_dir> [--pon <pon.vcf.gz>]
         [--germline-resource <af-only.vcf.gz>] [--jobs N] [--overwrite]`
 
-Each individual's WGS and RNA VCF records are matched, and every RNA variant's
-coordinates (chrom, pos) that have no WGS record are written to
-<output>/<group>/<id>/<id>_rna_unique.vcf. This is the RNA-specific set stored
-into a database for downstream analysis.
-
-Panel membership is read straight from pon.vcf.gz -- every record in a
-CreateSomaticPanelOfNormals output is a panel site, the minimum sample count
-having been applied when it was built, so there is no threshold to re-apply.
-Germline membership is read the same way from whatever --germline-resource
-`wgseqpipe variants` was given; pass the same file, or the flagging will not
-correspond to what was actually suppressed.
+Input:  each individual's WGS VCF (*_contaminates_filtered.vcf.gz) and RNA VCF
+        (*_varcall_flt.vcf), plus the same --pon and --germline-resource
+        `wgseqpipe variants` was given -- pass the same files, or the masking
+        will not correspond to what was actually suppressed. Panel membership
+        is read straight from pon.vcf.gz, since every record in a
+        CreateSomaticPanelOfNormals output is a panel site and the minimum
+        sample count was applied when it was built.
+Output: <output>/<group>/<id>/<id>_rna_unique.vcf per individual, carrying
+        ##tarva_rna_unique_* provenance headers, plus rna_unique_summary.csv.
 
 **--pon and --germline-resource are independently optional.** Pass neither,
 either, or both, matching whatever `wgseqpipe variants` was actually given:
@@ -39,6 +42,12 @@ either, or both, matching whatever `wgseqpipe variants` was actually given:
               precedence, so removed_by_pon and germline_flagged never count
               the same record twice.
 
+Panel positions are deleted rather than flagged, so an output VCF built with
+--pon cannot be told from one built without it by inspection. Both resources
+are therefore recorded in the output's own headers and in the summary's
+pon_vcf / pon_positions / germline_vcf / germline_positions columns: a zero
+removed_by_pon beside a named file with a nonzero index then means the panel
+genuinely had no overlap, not that no panel was applied.
 """
 
 import csv
@@ -108,8 +117,13 @@ def _open_vcf(path):
 
 def load_position_index(vcf_path):
     """
-    {chrom: sorted array of positions}.
+    {chrom: sorted array of positions}, for membership tests on a large VCF.
 
+    Raises ValueError, not SystemExit, on an unsorted file: this runs inside a
+    worker thread for the WGS VCFs, and SystemExit is a BaseException that
+    `except Exception` would not catch -- it would escape through
+    future.result() and kill the run with no summary row written. Callers on
+    the main thread translate it.
     """
     index = {}
     with _open_vcf(vcf_path) as fh:
@@ -151,7 +165,11 @@ def index_size(index):
 
 def load_resource(vcf_path, label, required=False):
     """
-    One shared position index, loaded once for each individual.
+    One shared position index, loaded once for every sample.
+
+    An absent optional resource yields an empty index, which position_in()
+    reports False for on every lookup -- so nothing downstream needs to branch
+    on whether the resource was given.
     """
     if not vcf_path:
         if required:
@@ -174,6 +192,11 @@ def rna_contig_names(args, meta):
     """
     Contig names declared by the first readable RNA VCF, for the mismatch check.
 
+    Taken from the header's ##contig lines rather than by scanning records: the
+    check only needs the naming scheme, and GATK writes the full sequence
+    dictionary into every VCF it produces. Returns an empty set when no RNA VCF
+    is readable or none declares contigs, in which case the check is skipped
+    rather than guessed at.
     """
     for sample in meta.samples:
         rna_vcf = _sample_vcf(args.rna_variants, sample, RNA_VCF_SUFFIX)
@@ -197,7 +220,13 @@ def rna_contig_names(args, meta):
 
 def warn_contig_mismatch(label, index, rna_contigs):
     """
-    Catch an Ensembl/RefSeq naming mismatch.
+    Catch an Ensembl/RefSeq naming mismatch before it masks nothing silently.
+
+    A resource whose contigs are named differently from the RNA calls misses on
+    every lookup: removed_by_pon comes out 0, the run reports success, and no
+    masking was applied at all -- indistinguishable from not passing the flag.
+    This project has already hit the same mismatch with the MGP known-sites VCF
+    (Ensembl `1` versus RefSeq `NC_000067.7`).
     """
     if not index or not rna_contigs:
         return
@@ -213,6 +242,9 @@ def provenance_headers(args, wgs_vcf, pon_index, germline_index):
     """
     What was applied to this file, as VCF header lines.
 
+    Panel positions are deleted rather than flagged, so without this an output
+    VCF carries no record that masking happened and cannot be told from one
+    built with no panel at all.
     """
     pon = Path(args.pon).resolve() if args.pon else None
     germline = Path(args.germline_resource).resolve() if args.germline_resource else None

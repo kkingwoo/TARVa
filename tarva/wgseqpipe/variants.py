@@ -1,5 +1,9 @@
 """
-wgseqpipe variants: PON-aware Mutect2 and filtering, for every sample
+wgseqpipe variants: call and filter WGS variants for every sample, applying
+the panel of normals to both groups.
+
+Per sample: Mutect2 with the panel of normals, then GetPileupSummaries ->
+CalculateContamination -> FilterMutectCalls.
 
     `tarva wgseqpipe variants --metadata <meta.csv> --preprocessed <preproc_dir>
         --output <vcf_dir> --ref <genome.fa[.gz]>
@@ -9,11 +13,13 @@ wgseqpipe variants: PON-aware Mutect2 and filtering, for every sample
         [--jobs N] [--sample-index N] [--overwrite]
         [--hpc] [--array] [--array-concurrency N] [--directives-dict "{...}"]`
 
-Per sample: Mutect2 with the panel of normals, then GetPileupSummaries ->
-CalculateContamination -> FilterMutectCalls. Output is
-<output>/<group>/<individualID>/<individualID>_contaminates_filtered.vcf.gz,
-the name TARVaCreation/OriginalBuild/checkRNA_againstWGS.py expects.
-
+Input:  the preprocessed BAMs and the reference; optionally a panel of
+        normals, a germline resource and a common-sites VCF. Without
+        --common-sites the pileup and contamination steps are skipped and the
+        sample is reported as filtered with no contamination table.
+Output: <output>/<group>/<individualID>/<individualID>_contaminates_filtered.vcf.gz
+        per sample, the raw Mutect2 VCF beside it, and a summary CSV. This is
+        what `analysispipe rna-unique` reads as the WGS side.
 """
 
 import csv
@@ -29,7 +35,7 @@ from tarva.slurm_utils import (parse_directives_dict, split_directives, submit_j
                                write_sbatch_script)
 
 RAW_VCF_SUFFIX = "_mutect2.vcf.gz"
-# The name checkRNA_againstWGS.py looks for. Keep it.
+# The name `analysispipe rna-unique` looks for. Keep it.
 FILTERED_VCF_SUFFIX = "_contaminates_filtered.vcf.gz"
 
 SUMMARY_FIELDS = [

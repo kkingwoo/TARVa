@@ -1,6 +1,15 @@
 """
-TARVa database schema
+The TARVa database schema: every table, its indexes, and the helpers the
+build and analysis steps share.
 
+One step is the single writer of any given table, and each step records its
+own thresholds and input paths in run_meta under its own key prefix.
+
+Input:  nothing -- this module is imported, not run.
+Output: table and index definitions, connection helpers
+        (`connect_for_build`, `connect_read_only`), schema creation
+        (`create_schema`, `create_indexes`) and run_meta access
+        (`set_meta`, `get_meta`).
 """
 
 import sqlite3 as sql
@@ -112,8 +121,8 @@ TABLES = {
     # and a variant call inherently carries all four.
     #
     # a1type is computed once, at load, from (ref, alt1, site.strand) and
-    # stored. Every analysis reads this column; none recomputes it. That single
-    # change removes the four-way drift recorded in section 4 of the plan.
+    # stored. Every analysis reads this column and none recomputes it, so the
+    # call type cannot differ between steps.
     "call": """
         CREATE TABLE IF NOT EXISTS call (
             chrom   text    NOT NULL,
@@ -143,16 +152,25 @@ TABLES = {
         ) WITHOUT ROWID;
     """,
 
-    # complete_in names the condition in which EVERY sample carried at least
-    # one eligible call for this (gene, a1type). That completeness is the
-    # entry criterion: a pair qualifies only if at least one variant call 
-    # is found for all individuals in at least one conditions.
-    # Storing it is what makes n_*_observed interpretable
-    # without inferring which side was the complete one.
+    # The per-gene test: ONE ROW PER GENE, every call type pooled. Each individual
+    # contributes a single number -- all of their unweighted ad/dp proportions
+    # in that gene, across every position AND every call type, summed -- and
+    # the arms are those per-individual sums, zero-padded to cohort size.
+    #
+    # Per-call-type quantities live in gene_calltype, not here: the unit of
+    # this test is the gene, and storing a call type against a per-gene
+    # p-value would invite reading the two as if they belonged together.
+    #
+    # complete_in names the condition in which EVERY individual carried at
+    # least one eligible call in this gene -- the entry criterion. Storing it
+    # is what makes n_*_observed interpretable without inferring which side
+    # was the complete one.
+    #
+    # n_sites_* are raw SITE counts per condition, not individual counts,
+    # tracked beside the per-individual sums the test actually uses.
     "gene_test": """
         CREATE TABLE IF NOT EXISTS gene_test (
-            ref_id           text NOT NULL,
-            a1type           text NOT NULL,
+            ref_id           text NOT NULL PRIMARY KEY,
             complete_in      text,
             u_stat           real,
             p_value          real,
@@ -162,20 +180,61 @@ TABLES = {
             n_case_padded    integer,
             n_ref_observed   integer,
             n_ref_padded     integer,
+            n_sites_case     integer,
+            n_sites_ref      integer,
+            FOREIGN KEY (ref_id) REFERENCES gene(ref_id)
+        );
+    """,
+
+    # Per (gene, call type) aggregates. NO TEST HERE -- local stage 4 runs its
+    # own t-test and is the only consumer. This table exists because that test
+    # needs quantities at this unit and nothing else in the pipeline does.
+    #
+    # sum_ad_* / sum_dp_* give the aggregated proportion sum_ad / sum_dp per
+    # gene per call type per condition: allele depths and supporting read
+    # depths summed over every alternate-allele site and every individual of
+    # that condition.
+    #
+    # n_indiv_* count DISTINCT INDIVIDUALS carrying that call type in that
+    # gene, which is what stage 4's retention rule tests -- at least half the
+    # individuals of one condition. n_sites_* count rows. The two differ
+    # whenever one individual carries several sites, which is the usual case,
+    # so both are stored rather than one inferred from the other.
+    "gene_calltype": """
+        CREATE TABLE IF NOT EXISTS gene_calltype (
+            ref_id        text NOT NULL,
+            a1type        text NOT NULL,
+            n_sites_case  integer,
+            n_sites_ref   integer,
+            n_indiv_case  integer,
+            n_indiv_ref   integer,
+            sum_ad_case   integer,
+            sum_dp_case   integer,
+            sum_ad_ref    integer,
+            sum_dp_ref    integer,
             PRIMARY KEY (ref_id, a1type),
             FOREIGN KEY (ref_id) REFERENCES gene(ref_id)
         ) WITHOUT ROWID;
     """,
 
-    # Separate from `gene` because these are written by `stats`, not by
-    # `annotate`, and one writer per table is the rule. Keyed on ref_id alone
-    # because edit_dist is a per-gene property -- storing it on gene_test would
-    # duplicate it across every call type.
+    # Separate from `gene` because these are written by `gene-tests`, not by
+    # `annotate`, and one writer per table is the rule.
     #
-    # Each condition's share of the gene's total, thresholded at 0.75. 
-    # The component counts sit beside
-    # the verdict for the same reason n_*_observed sits beside a p-value -- so
-    # the assignment is checkable rather than asserted.
+    # TWO three-category classifications of the same gene, at two thresholds:
+    #
+    #   gene_group  the condition-enriched subset assignment. A condition
+    #               holding >= 75% of the gene's alternate-allele COUNTS gives
+    #               that condition's *_enriched subset; anything between 25%
+    #               and 75% gives Shared.
+    #   edit_dist   the per-gene distribution label the site-uniqueness step
+    #               groups by. Whichever condition holds MORE THAN HALF gives
+    #               that condition's *_enriched label; an exact tie gives Both.
+    #
+    # Both name two of their groups *_enriched; only the threshold and the
+    # third label differ (Shared at 75%, Both at a tie).
+    #
+    # The component counts sit beside the verdict for the same reason
+    # n_*_observed sits beside a p-value.
     "gene_class": """
         CREATE TABLE IF NOT EXISTS gene_class (
             ref_id        text NOT NULL PRIMARY KEY,
@@ -183,10 +242,161 @@ TABLES = {
             gene_group    text,
             n_calls_case  integer,
             n_calls_ref   integer,
-            sum_ad_case   integer,
-            sum_ad_ref    integer,
             FOREIGN KEY (ref_id) REFERENCES gene(ref_id)
         );
+    """,
+
+    # One row per gene: Spearman between per-gene TPM and variant count across
+    # the individuals of each condition, then Fisher z on the difference
+    # between the two correlations.
+    #
+    # case/ref rather than the dataset's own labels, as everywhere else, with
+    # the labels in run_meta.
+    #
+    # NULL rho and p_value mean the condition failed the entry rule for this
+    # test (fewer than MIN_INDIVIDUALS individuals, or no variance in TPM or
+    # in variant count), which is a different statement from a correlation of
+    # zero. 
+    #
+    # Both diff_pvalue and diff_adj_pvalue are stored, since the figure
+    # outlines points on the nominal value while the adjusted one decides
+    # significance.
+    "expression_test": """
+        CREATE TABLE IF NOT EXISTS expression_test (
+            ref_id           text NOT NULL PRIMARY KEY,
+            gene_group       text,
+            novel            integer,
+            n_case           integer,
+            case_rho         real,
+            case_pvalue      real,
+            n_ref            integer,
+            ref_rho          real,
+            ref_pvalue       real,
+            diff_pvalue      real,
+            diff_adj_pvalue  real,
+            FOREIGN KEY (ref_id) REFERENCES gene(ref_id)
+        );
+    """,
+
+    # One row per (edit_dist subset, call type). A 2x2 of condition against
+    # site uniqueness, tested with Fisher's exact.
+    #
+    #                 unique            common
+    #   case     n_case_unique     n_case_common
+    #   ref      n_ref_unique      n_ref_common
+    #
+    # odds_ratio is (case_unique * ref_common) / (case_common * ref_unique),
+    # so ABOVE 1 means unique sites are relatively more likely in the case
+    # condition. The four counts are distinct POSITIONS, not calls.
+    #
+    # p_value comes from Fisher's exact on the RAW counts -- an exact test
+    # needs no zero correction. odds_ratio and the interval come from counts
+    # with Haldane-Anscombe applied, because a zero cell makes the ratio
+    # infinite or undefined. Both are stored so neither has to be recomputed
+    # from the other's inputs.
+    "uniqueness_test": """
+        CREATE TABLE IF NOT EXISTS uniqueness_test (
+            edit_dist      text NOT NULL,
+            a1type         text NOT NULL,
+            n_case_unique  integer,
+            n_case_common  integer,
+            n_ref_unique   integer,
+            n_ref_common   integer,
+            odds_ratio     real,
+            ci_low         real,
+            ci_high        real,
+            p_value        real,
+            adj_pvalue     real,
+            basis          text,
+            PRIMARY KEY (edit_dist, a1type)
+        ) WITHOUT ROWID;
+    """,
+
+    # One test per call type, across genes. gene_set names which set of genes
+    # the test ran over. One observation is one INDIVIDUAL -- their weighted
+    # proportions of that call type summed over every position and every gene
+    # in the set -- so the arms are zero-padded to cohort size as gene_test's
+    # are, and the observed/padded split is recorded for the same reason: a
+    # result resting mostly on imputed zeros should be visible without a
+    # re-run.
+    #
+    # `basis` names the p-value column this step's significance was read from
+    # -- adj_pvalue, p_value, or empty when neither reached alpha in a
+    # majority of tests. Stored because the call-type figure must mark the
+    # column the step actually used, which it cannot infer from the values.
+    "calltype_test": """
+        CREATE TABLE IF NOT EXISTS calltype_test (
+            gene_set         text NOT NULL,
+            a1type           text NOT NULL,
+            u_stat           real,
+            p_value          real,
+            adj_pvalue       real,
+            basis            text,
+            rbc              real,
+            n_case_observed  integer,
+            n_case_padded    integer,
+            n_ref_observed   integer,
+            n_ref_padded     integer,
+            PRIMARY KEY (gene_set, a1type)
+        ) WITHOUT ROWID;
+    """,
+
+    # The local level, stages 4-6: one row per (gene, call type).
+    #
+    # stage 4  prop_* is that condition's aggregated proportion, sum(ad) over
+    #          sum(dp) across every alternate-allele site and every CARRIER of
+    #          the condition. 
+    # stage 5  n_case / n_ref count DISTINCT INDIVIDUALS carrying that call
+    #          type in that gene, and local_dist classifies the pair from them.
+    # stage 6  prop_p_value is a Mann-Whitney over the length-weighted
+    #          per-site proportions, pooled across the gene's positions and
+    #          split by condition, with higher_prop naming the condition whose
+    #          mean was larger.
+    #
+    # retained is stage 4's: p below its alpha AND at least half the
+    # individuals of one condition carrying the call type. final_retained adds
+    # stage 6's rule -- one condition's carrier count above 1 and at least
+    # half again the other's, or a nominal stage-6 p below its alpha.
+    "local_calltype_test": """
+        CREATE TABLE IF NOT EXISTS local_calltype_test (
+            ref_id           text NOT NULL,
+            a1type           text NOT NULL,
+            n_case           integer,
+            n_ref            integer,
+            prop_case        real,
+            prop_ref         real,
+            t_stat           real,
+            p_value          real,
+            adj_pvalue       real,
+            retained         integer,
+            local_dist       text,
+            prop_u_stat      real,
+            prop_p_value     real,
+            prop_adj_pvalue  real,
+            higher_prop      text,
+            final_retained   integer,
+            PRIMARY KEY (ref_id, a1type),
+            FOREIGN KEY (ref_id) REFERENCES gene(ref_id)
+        ) WITHOUT ROWID;
+    """,
+
+    # One row per altered position of a retained (gene, call type), with how
+    # many individuals of each condition carry it.
+    #
+    # Genomic chrom/pos, as every other table keys positions. A
+    # transcript-relative coordinate is computable from `exon.trans_offset`
+    # if it is wanted.
+    "local_site": """
+        CREATE TABLE IF NOT EXISTS local_site (
+            ref_id   text    NOT NULL,
+            a1type   text    NOT NULL,
+            chrom    text    NOT NULL,
+            pos      integer NOT NULL,
+            n_case   integer,
+            n_ref    integer,
+            PRIMARY KEY (ref_id, a1type, chrom, pos),
+            FOREIGN KEY (chrom, pos) REFERENCES site(chrom, pos)
+        ) WITHOUT ROWID;
     """,
 
     # Thresholds, cohort sizes, tool versions and input paths.
@@ -249,10 +459,34 @@ INDEXES = {
                             "ON expression(tid);"),
         ),
 
-    # Both keyed on ref_id as PRIMARY KEY, which serves every lookup either
-    # one gets; gene_test's (ref_id, a1type) prefix covers per-gene access.
+    # All three keyed on ref_id as PRIMARY KEY or as its leading column, which
+    # serves every lookup they get; gene_calltype's (ref_id, a1type) prefix
+    # covers per-gene access as well as the exact key.
     "gene_test": (),
     "gene_class": (),
+    "gene_calltype": (),
+
+    # Keyed on ref_id; the only other access is a scan for the figure.
+    "expression_test": (),
+
+    # None: PRIMARY KEY (edit_dist, a1type) on a WITHOUT ROWID table is the
+    # index, and the table holds three subsets times fourteen call types.
+    "uniqueness_test": (),
+
+    # (ref_id, a1type) leads both keys, which serves per-gene access as well
+    # as the exact key; local_site also gets a position index, since Table 3
+    # is read by position as often as by gene.
+    "local_calltype_test": (),
+    "local_site": (
+        ("local_site_pos_idx",
+                            "CREATE INDEX IF NOT EXISTS local_site_pos_idx "
+                            "ON local_site(chrom, pos);"),
+        ),
+
+    # None: PRIMARY KEY (gene_set, a1type) on a WITHOUT ROWID table is the
+    # index, and the table holds one row per call type per gene set -- tens of
+    # rows, not millions. ANALYZE still runs.
+    "calltype_test": (),
 
     "run_meta": (),
     }

@@ -1,0 +1,177 @@
+---
+title: "TARVa Figure 4 -- expression versus variant load"
+author: "Kat J"
+output: html_document
+params:
+  input_dir: "."
+  output_prefix: "Fig4_tpm_variant_correlation"
+  alpha: 0.05
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.retina = 2)
+library(tidyverse)
+library(patchwork)
+```
+
+Reads `tpm_variant_relationship.csv`, written by
+`tarva analysispipe expression-correlation --output <dir>`. It computes nothing: every
+rho and p-value comes from that step.
+
+Panel A plots each gene's two Spearman coefficients against each other, faceted by gene
+subset. Panel B summarises the same genes as proportions. No main title, by request.
+
+`case_condition` and `ref_condition` come from the CSV, so nothing here assumes what the
+two groups are called.
+
+```{r load}
+df <- read_csv(file.path(params$input_dir, "tpm_variant_relationship.csv"),
+               show_col_types = FALSE)
+
+stopifnot(nrow(df) > 0)
+for (needed in c("case_condition", "ref_condition", "case_rho", "ref_rho",
+                 "case_pvalue", "ref_pvalue", "diff_pvalue", "gene_group")) {
+  if (!needed %in% names(df)) {
+    stop("tpm_variant_relationship.csv has no '", needed,
+         "' column -- re-run expression-correlation.")
+  }
+}
+
+case_condition <- unique(df$case_condition)[1]
+ref_condition  <- unique(df$ref_condition)[1]
+
+# Group labels are the dataset's own.
+group_levels <- c(
+  paste0(case_condition, "_enriched"),
+  paste0(ref_condition, "_enriched")
+)
+group_levels <- c(group_levels[group_levels %in% df$gene_group],
+                  setdiff(sort(unique(df$gene_group)), group_levels))
+
+sig_levels <- c("Neither significant",
+                paste(case_condition, "only"),
+                paste(ref_condition, "only"),
+                "Both significant")
+
+df <- df %>%
+  mutate(
+    gene_group = factor(gene_group, levels = group_levels),
+    case_sig = !is.na(case_pvalue) & case_pvalue < params$alpha,
+    ref_sig  = !is.na(ref_pvalue)  & ref_pvalue  < params$alpha,
+    diff_sig = !is.na(diff_pvalue) & diff_pvalue < params$alpha,
+    sig_group = case_when(
+      case_sig &  ref_sig ~ "Both significant",
+      case_sig & !ref_sig ~ paste(case_condition, "only"),
+      !case_sig & ref_sig ~ paste(ref_condition, "only"),
+      TRUE                ~ "Neither significant"
+    ),
+    sig_group = factor(sig_group, levels = sig_levels),
+    diff_sig_label = factor(
+      if_else(diff_sig, "Significantly different",
+              "Not significantly different"),
+      levels = c("Not significantly different", "Significantly different")
+    )
+  )
+
+# RColorBrewer "Dark2", keyed to this dataset's labels.
+sig_colors <- setNames(c("grey80", "#1B9E77", "#D95F02", "#7570B3"), sig_levels)
+outline_colors <- c("Not significantly different" = "grey60",
+                    "Significantly different"     = "black")
+
+cat("genes:            ", nrow(df), "\n",
+    "case:             ", case_condition, "\n",
+    "reference:        ", ref_condition, "\n",
+    "with both rho:    ", sum(!is.na(df$case_rho) & !is.na(df$ref_rho)), "\n",
+    "subsets:          ", paste(levels(df$gene_group), collapse = ", "), "\n",
+    sep = "")
+```
+
+```{r panelA, fig.width=9, fig.height=3.6}
+plot_df <- df %>% filter(!is.na(case_rho), !is.na(ref_rho))
+
+panelA <- ggplot(plot_df, aes(x = case_rho, y = ref_rho)) +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "grey60",
+             linewidth = 0.4) +
+  geom_vline(xintercept = 0, linetype = "dotted", color = "grey60",
+             linewidth = 0.4) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "grey50",
+              linewidth = 0.4) +
+  geom_point(aes(fill = sig_group, color = diff_sig_label),
+             shape = 21, size = 2.4, stroke = 0.9, alpha = 0.85) +
+  scale_fill_manual(values = sig_colors, breaks = names(sig_colors),
+                    name = sprintf("Significant correlations (p < %s)",
+                                   params$alpha)) +
+  scale_color_manual(values = outline_colors, breaks = names(outline_colors),
+                     name = sprintf("Significant difference between\nconditions (p < %s)",
+                                    params$alpha)) +
+  coord_fixed(xlim = c(-1, 1), ylim = c(-1, 1)) +
+  facet_wrap(~ gene_group, nrow = 1) +
+  labs(
+    x = bquote("Spearman" ~ rho ~ "(" * .(case_condition) * ")"),
+    y = bquote("Spearman" ~ rho ~ "(" * .(ref_condition) * ")")
+  ) +
+  theme_bw(base_size = 11) +
+  theme(
+    panel.grid = element_blank(),
+    strip.background = element_rect(fill = "grey95", color = NA),
+    strip.text = element_text(face = "bold"),
+    legend.position = "bottom",
+    legend.box = "vertical",
+    legend.margin = margin(t = -5),
+    legend.title = element_text(size = 9),
+    legend.text = element_text(size = 8)
+  ) +
+  guides(
+    fill = guide_legend(
+      override.aes = list(shape = 21, color = "grey40", alpha = 1),
+      nrow = 2, order = 1),
+    color = guide_legend(
+      override.aes = list(shape = 21, fill = "white", alpha = 1), order = 2)
+  )
+
+panelA
+```
+
+```{r panelB, fig.width=4, fig.height=3.6}
+summary_df <- df %>%
+  count(gene_group, sig_group, .drop = FALSE) %>%
+  group_by(gene_group) %>%
+  mutate(pct = 100 * n / sum(n)) %>%
+  ungroup()
+
+panelB <- ggplot(summary_df, aes(x = gene_group, y = pct, fill = sig_group)) +
+  geom_col(width = 0.65, color = "white", linewidth = 0.3) +
+  geom_text(aes(label = ifelse(n > 0, n, "")),
+            position = position_stack(vjust = 0.5), size = 2.6,
+            color = "white") +
+  scale_fill_manual(values = sig_colors, guide = "none") +
+  labs(x = NULL, y = "% of genes in subset") +
+  theme_bw(base_size = 11) +
+  theme(
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle = 20, hjust = 1)
+  )
+
+panelB
+```
+
+```{r combine, fig.width=10, fig.height=4.6}
+# patchwork collects the legend itself via `guides = "collect"`.
+combined <- (panelB + panelA) +
+  plot_layout(widths = c(1, 2.3), guides = "collect") +
+  plot_annotation(tag_levels = "A") &
+  theme(legend.position = "bottom", legend.box = "vertical")
+
+combined
+```
+
+```{r save}
+for (ext in c("tiff", "png")) {
+  path <- file.path(params$input_dir, paste0(params$output_prefix, ".", ext))
+  ggsave(path, combined, width = 10, height = 4.6, units = "in", dpi = 300,
+         compression = if (ext == "tiff") "lzw" else NULL)
+  message("wrote ", path)
+}
+```

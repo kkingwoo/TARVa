@@ -2,20 +2,19 @@
 sort-input: copy raw FASTQ files into the <WGS|RNA>/<group>/<adapter>/ tree
     that `tarva qc` expects.
 
+    Files are only ever copied, never moved, so the originals stay where they
+    are. Copying runs concurrently across --threads workers.
+
     `tarva sort-input --metadata <meta.csv> --input <input_dir> --output <sorted_dir>`
 
-    For each sample and sequencing type (WGS, RNA), files whose name starts
-    with that sample's WGS/RNA prefix are located anywhere under --input
-    Original files will be left in their path and copied-only
-    into:
-        <output>/WGS/<group>/<adapter_stem>/
-        <output>/RNA/<group>/<adapter_stem>/
-    where <adapter_stem> is the filename (without .fa) of the adapter FASTA
-    resolved from that sample's wgs_barcode/rna_barcode metadata.csv column.
-
-    Files are copied concurrently across --threads workers
-    
-    This command's --output is --input to `tarva qc`.
+    Input:  the metadata CSV, and raw FASTQ files in whatever layout they are
+            in today -- --input is searched recursively, and a file is claimed
+            by the sample whose WGS or RNA prefix its name starts with.
+    Output: <output>/WGS/<group>/<adapter_stem>/ and
+            <output>/RNA/<group>/<adapter_stem>/, where <adapter_stem> is the
+            adapter FASTA's filename without .fa, resolved from that sample's
+            wgs_barcode / rna_barcode cell. This directory is --input to
+            `tarva qc`.
 """
 
 import shutil
@@ -34,7 +33,7 @@ def add_arguments(parser):
     parser.add_argument("--metadata", required=True, help="Path to metadata CSV (see metadata.py)")
     parser.add_argument(
             "--input", required=True,
-            help="Directory containing raw FASTQ files (searched recursively)",
+            help="Directory containing raw FASTQ files in whatever layout they exist today (searched recursively)",
             )
     parser.add_argument(
             "--output", required=True,

@@ -1,7 +1,12 @@
 """
-Optional SLURM helpers for HPC/SLURM users.
+Optional SLURM helpers, used by every step that accepts `--hpc`.
 
-Command line option: `--hpc`
+Input:  a step's own command line, plus the sbatch directives given as
+        --directives-dict (a Python dict literal, e.g.
+        "{'partition': 'Mamba', 'mem': '48gb', 'time': '24:00:00'}").
+Output: a generated sbatch script, and the job id sbatch returns. With
+        --array the script carries #SBATCH --array and passes each task its
+        own --sample-index.
 """
 
 import argparse
@@ -91,8 +96,8 @@ def build_sbatch_script(
     """
     extra_directives is an escape hatch for any other SLURM option not covered
     by a dedicated parameter above. Accepts either:
-        - a dict, e.g. {"gres": "gpu:1", "account": "confused_cupcake_research"}
-        - a list of raw strings, e.g. ["--gres=gpu:1", "--account=confused_cupcake_research"]
+        - a dict, e.g. {"gres": "gpu:1", "account": "cupcakes"}
+        - a list of raw strings, e.g. ["--gres=gpu:1", "--account=cupcakes"]
 
     log_suffix is appended to the .e/.o basenames. Job arrays pass "_%a" so each
     task gets its own log; without it every task writes to one file and their

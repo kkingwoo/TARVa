@@ -7,9 +7,7 @@ stringtiepipe novel-transcripts: novel-transcript FASTA, merged with the genome
         [--known-class-codes CODES] [--overwrite] [--work-dir DIR]
         [--hpc] [--conda-env NAME] [--modules M1,M2] [--directives-dict "{...}"]`
 
-Four stages, per the methods ("a FASTA file of the novel transcripts was
-created from the Stringtie-generated GTF file and merged with [the] reference
-FASTA for use in next steps"):
+Four stages:
 
     1.) gffcompare the StringTie merged.gtf against the reference annotation,
         which is what assigns each transcript a class_code
@@ -19,13 +17,21 @@ FASTA for use in next steps"):
     4.) concatenate the genome FASTA and the novel sequences into
         combined_reference.fa
 
-That combined FASTA is a reference in its own right, not a report: the
-two-pass RNA alignment for variant calling maps against it. Its .fai and .dict
-are written here, since every RNA GATK step downstream requires them. The STAR
-index is not -- that is hours of work with its own resource profile, so
-`tarva prep-reference --ref <combined> --star-index DIR` is still required
-before alignment.
+Note what stage 4 implies: novel transcript sequences become additional
+contigs alongside the genome they were derived from, so reads from those
+regions can map to either copy. It is called out here because it affects
+multi-mapping rates downstream.
 
+Input:  the assembly directory holding merged.gtf, the reference annotation
+        and the genome FASTA. gffcompare uses the same gclib parser as
+        StringTie, so --gtf wants the annotation `stringtiepipe assemble` was
+        given -- for NCBI RefSeq the .gff, not the .gtf, which gclib rejects.
+Output: gffcompare/, novel.gtf, novel_transcripts.fa and
+        combined_reference.fa with its .fai and .dict. That combined FASTA is
+        a reference in its own right -- the two-pass RNA alignment maps
+        against it -- but its STAR index is NOT built here, so
+        `tarva prep-reference --ref <combined> --star-index DIR` is still
+        required before alignment.
 """
 
 import csv
@@ -82,14 +88,14 @@ def add_arguments(parser):
                         help="Submit as a SLURM job instead of running locally")
     parser.add_argument("--conda-env", default="bio_qc",
                         help="Conda environment activated in the generated SLURM script "
-                             "(default: bio_qc)")
+                             "(default: bio_qc -- runs the CLI itself)")
     parser.add_argument("--modules", default="",
                         help="Comma-separated HPC modules to load (default: none -- gffcompare "
                              "and gffread come from their --*-bin paths)")
     parser.add_argument("--directives-dict", dest="directives_dict",
                         type=parse_directives_dict, default={}, metavar="DICT",
                         help="SLURM sbatch directives as a Python dict literal, only used with "
-                             "--hpc. This step is light: \"{'partition': 'Mamba', "
+                             "--hpc. This step is light: \"{'partition': 'Orion', "
                              "'mem': '16gb', 'time': '02:00:00', 'cpus_per_task': 2}\"")
 
 
@@ -108,6 +114,8 @@ def run_gffcompare(gffcompare_bin, reference_gtf, merged_gtf, output_dir, overwr
     """
     Stage 1: annotate merged.gtf against the reference, yielding class codes.
 
+    gffcompare is what assigns class_code; `stringtie --merge` does not emit it,
+    which is why this stage exists rather than reading merged.gtf directly.
     """
     compare_dir = Path(output_dir) / "gffcompare"
     annotated = compare_dir / f"{GFFCOMPARE_PREFIX}.annotated.gtf"
@@ -130,6 +138,11 @@ def select_novel_transcripts(annotated_gtf, novel_gtf, known_class_codes):
     """
     Stage 2: write the subset of `annotated_gtf` whose class_code is novel.
 
+    Two passes on purpose. gffcompare carries class_code on transcript lines,
+    but gffread needs the exon lines too, so pass one maps transcript_id ->
+    class_code and pass two emits every line belonging to a selected
+    transcript. Filtering line-by-line on class_code alone would drop the exons
+    and produce an unusable GTF.
     """
     annotated_gtf, novel_gtf = Path(annotated_gtf), Path(novel_gtf)
     class_codes, counts = {}, Counter()
@@ -209,6 +222,10 @@ def combine_fastas(genome_fasta, novel_fasta, combined, overwrite=False):
     """
     Stage 4: genome + novel sequences in one FASTA.
 
+    A missing trailing newline on either source would concatenate the next
+    file's '>' header onto the previous sequence line and silently corrupt both
+    records, so each part is newline-terminated explicitly. Streams to .partial
+    and renames, for the same reason ensure_unzipped does.
     """
     combined = Path(combined)
     if combined.is_file() and combined.stat().st_size > 0 and not overwrite:
@@ -261,6 +278,11 @@ def run(args):
     combined = combine_fastas(genome_fasta, novel_fasta,
                               output_dir / COMBINED_FASTA_NAME, overwrite=args.overwrite)
 
+    # The .fai and .dict take seconds and every GATK step downstream refuses to
+    # start without them, so build them here rather than leaving a manual step
+    # that only surfaces once `rnaseqpipe preprocess` has already been queued.
+    # Safe inline: this step is a single process, not a job array, so nothing
+    # races to write the same file.
     ensure_fasta_index(combined)
     ensure_sequence_dictionary(combined)
 

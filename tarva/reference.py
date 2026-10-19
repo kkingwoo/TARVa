@@ -5,10 +5,21 @@ prep-reference: decompress, index, and build aligner indexes for a reference
         [--bwa-index] [--threads N] [--work-dir DIR] [--force-rebuild]
         [--hpc] [--conda-env NAME] [--modules M1,M2] [--directives-dict "{...}"]`
 
+Every helper here is idempotent: it checks for its expected output and returns
+without rebuilding. Run it once per reference before fanning out per-sample
+alignment jobs. Each align step also calls the relevant ensure_* once at the
+top of its run(), so skipping this command degrades to a slow first job rather
+than a broken one -- never from inside a per-sample worker, which would have
+several processes racing to build the same index.
+
 STAR indexes are built WITHOUT the annotation GTF by default. The annotation
 is inserted at mapping time instead (--sjdbGTFfile/--sjdbOverhang), which
 keeps one index usable across annotations -- including the StringTie-merged
-GTF produced later in the pipeline, which would otherwise force a rebuild.
+GTF produced later, which would otherwise force a rebuild.
+
+Input:  a reference FASTA, gzipped or not, and optionally an annotation GTF.
+Output: an uncompressed FASTA where one was gzipped, its .fai and .dict, and
+        the STAR and/or BWA indexes asked for.
 """
 
 import gzip
@@ -22,6 +33,8 @@ from pathlib import Path
 
 from tarva.slurm_utils import parse_directives_dict, split_directives, submit_job, write_sbatch_script
 
+# Pinned deliberately: a STAR genome index is not portable across STAR major
+# versions, so a silent module bump would invalidate every built index.
 DEFAULT_STAR_MODULE, DEFAULT_BWA_MODULE = "star/2.7.11b", "bwa/0.7.17"
 FASTA_SUFFIXES = (".fa", ".fasta", ".fna")
 STAR_INDEX_SENTINELS = ("SAindex", "Genome", "genomeParameters.txt")
@@ -36,6 +49,17 @@ def ensure_unzipped(path, work_dir=None, description="file"):
     """
     Return a path to an uncompressed copy of `path`, decompressing if needed.
 
+    Several tools here reject gzipped input outright: neither `bwa index` nor
+    STAR genomeGenerate accepts a gzipped FASTA, and STAR's --sjdbGTFfile
+    rejects a gzipped GTF with a fatal input error.
+    Decompression streams to a per-process .partial file and renames on
+    success, so an interrupted run can't leave a truncated file that the
+    existence check below would happily accept, and concurrent callers -- such
+    as the tasks of a `wgseqpipe align --array` job -- can't overwrite each
+    other's scratch.
+
+    `work_dir` redirects the output when the source lives somewhere read-only
+    or space-constrained; it defaults to alongside `path`.
     """
     path = Path(path)
     if not path.is_file():
@@ -50,7 +74,10 @@ def ensure_unzipped(path, work_dir=None, description="file"):
         print(f"Already decompressed: {target}")
         return target
 
-    
+    # PID-scoped, not a bare ".partial": wgseqpipe align --array runs one
+    # process per sample against the same reference, and a shared scratch name
+    # would have them all streaming into one file. The rename is atomic, so
+    # last writer wins on byte-identical content.
     partial = target.with_name(f"{target.name}.{os.getpid()}.partial")
     print(f"Decompressing {path} -> {target}")
     with gzip.open(path, "rb") as src, open(partial, "wb") as dst:
@@ -60,12 +87,12 @@ def ensure_unzipped(path, work_dir=None, description="file"):
 
 
 def ensure_unzipped_fasta(ref, work_dir=None):
-    """."""
+    """Reference-FASTA flavour of ensure_unzipped, kept for call-site clarity."""
     return ensure_unzipped(ref, work_dir=work_dir, description="reference FASTA")
 
 
 def ensure_fasta_index(fasta):
-    """samtools faidx"""
+    """samtools faidx -- also the cheapest source of total genome length."""
     fasta = Path(fasta)
     fai = fasta.with_name(fasta.name + ".fai")
     if fai.is_file():
@@ -76,8 +103,8 @@ def ensure_fasta_index(fasta):
 
 def ensure_sequence_dictionary(fasta):
     """
-    gatk CreateSequenceDictionary.
-
+    gatk CreateSequenceDictionary. The .dict every GATK tool expects beside
+    the reference.
     """
     fasta = Path(fasta)
     stem = fasta.name
@@ -125,7 +152,9 @@ def sa_index_nbases(total_length):
     """
     STAR's --genomeSAindexNbases, per the manual's min(14, log2(L)/2 - 1).
 
-    STAR fails in confusing ways on small genomes.
+    14 is right for mouse and human, but STAR fails in confusing ways on small
+    genomes if this is left at the default, so derive it rather than hardcode
+    it -- other researchers' references won't all be mammalian.
     """
     return max(4, min(14, round(math.log2(total_length) / 2 - 1)))
 
@@ -133,8 +162,10 @@ def sa_index_nbases(total_length):
 def ensure_star_index(fasta, index_dir, threads=1, gtf=None, sjdb_overhang=None,
                       sa_index_nbases_override=None, force_rebuild=False):
     """
-    STAR --runMode genomeGenerate.
+    STAR --runMode genomeGenerate, idempotent on the usual sentinel files.
 
+    `gtf`/`sjdb_overhang` are accepted but normally left unset -- see the module
+    docstring on why the annotation goes in at mapping time instead.
     """
     fasta, index_dir = Path(fasta), Path(index_dir)
     existing = [s for s in STAR_INDEX_SENTINELS if (index_dir / s).is_file()]
@@ -193,14 +224,15 @@ def add_arguments(parser):
                         help="Reference genome FASTA; decompressed first if it ends in .gz")
     parser.add_argument("--work-dir",
                         help="Where to write the decompressed FASTA if --ref is gzipped "
-                             "(default: alongside --ref; set this if ref directory is "
-                             "read-only or short on space")
+                             "(default: alongside --ref; set this if that directory is "
+                             "read-only or short on space -- an uncompressed mammalian "
+                             "genome is roughly 3GB)")
     parser.add_argument("--star-index", metavar="DIR",
                         help="Build (or verify) a STAR genome index in DIR")
     parser.add_argument("--bwa-index", action="store_true",
                         help="Build (or verify) the BWA index alongside the FASTA")
     parser.add_argument("--gtf",
-                        help="Normally omitted -- "
+                        help="Annotation GTF to bake into the STAR index. Normally omitted -- "
                              "the annotation is inserted at mapping time so one index serves "
                              "multiple annotations, including the StringTie-merged GTF")
     parser.add_argument("--sjdb-overhang", type=int,
@@ -211,7 +243,7 @@ def add_arguments(parser):
     parser.add_argument("--threads", type=int, default=1,
                         help="Threads for STAR genomeGenerate (default: 1)")
     parser.add_argument("--force-rebuild", action="store_true",
-                        help="Discard and rebuild the STAR index")
+                        help="Discard and rebuild the STAR index even if one is present")
     parser.add_argument("--hpc", action="store_true",
                         help="Submit as a SLURM job instead of running locally")
     parser.add_argument("--conda-env", default="bio_qc",
@@ -223,8 +255,9 @@ def add_arguments(parser):
     parser.add_argument("--directives-dict", dest="directives_dict",
                         type=parse_directives_dict, default={}, metavar="DICT",
                         help="SLURM sbatch directives as a Python dict literal, only used "
-                             "with --hpc. Example: \"{'partition': "
-                             "'Mamba', 'mem': '64gb', 'time': '04:00:00', 'cpus_per_task': 8}\"")
+                             "with --hpc. A mammalian STAR genomeGenerate needs roughly "
+                             "40-64gb and a couple of hours. Example: \"{'partition': "
+                             "'Nebula', 'mem': '64gb', 'time': '04:00:00', 'cpus_per_task': 8}\"")
 
 
 def run(args):

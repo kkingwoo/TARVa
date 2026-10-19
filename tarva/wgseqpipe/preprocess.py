@@ -10,14 +10,17 @@ wgseqpipe preprocess: GATK preprocessing of aligned WGS BAMs
         [--hpc] [--array] [--array-concurrency N] [--conda-env NAME]
         [--modules M1,M2] [--directives-dict "{...}"]`
 
-Input is <aligned>/<group>/<individualID>/<individualID>_wgs.bam as written by
-`wgseqpipe align`, plus the trimmed WGS FASTQ pair under --qc-output, which
-FastqToSam needs for the unaligned BAM and the read-group header.
+A thin caller over the shared chain in gatk_common.py, which is where the
+chain itself is documented.
 
-Output is <output>/<group>/<individualID>/<individualID>_bqsr.bam, or
-<individualID>_coordsort.bam when --known-sites is omitted. Either way the BAM
-is coordinate-sorted and indexed, ready for `wgseqpipe pon` and
-`wgseqpipe variants`.
+Input:  <aligned>/<group>/<individualID>/<individualID>_wgs.bam from
+        `wgseqpipe align`, plus the trimmed WGS FASTQ pair under --qc-output,
+        which FastqToSam needs for the unaligned BAM and the read-group
+        header.
+Output: <output>/<group>/<individualID>/<individualID>_bqsr.bam, or
+        <individualID>_coordsort.bam when --known-sites is omitted. Either way
+        coordinate-sorted and indexed, ready for `wgseqpipe pon` and
+        `wgseqpipe variants`.
 """
 
 from tarva.gatk_common import PipelineSpec, add_preprocess_arguments, run_preprocess

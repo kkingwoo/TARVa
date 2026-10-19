@@ -10,11 +10,17 @@ rnaseqpipe preprocess: GATK preprocessing of two-pass-aligned RNA BAMs
         [--hpc] [--array] [--array-concurrency N] [--conda-env NAME]
         [--modules M1,M2] [--directives-dict "{...}"]`
 
-Input is the SECOND STAR alignment -- `rnaseqpipe align`'s `--twopassMode Basic`
-run for variant calling -- not the first-pass BAM that StringTie used for alignment. Those
-are different alignments of the same reads for different purposes. 
-See documentation for more details.
+A thin caller over the shared chain in gatk_common.py, which is where the
+chain itself is documented. On the RNA path it also runs SplitNCigarReads and
+AddOrReplaceReadGroups.
 
+Input:  the SECOND STAR alignment -- `rnaseqpipe align`'s --twopassMode Basic
+        run for variant calling, NOT the first-pass BAM StringTie used. Those
+        are different alignments of the same reads for different purposes.
+        Also the trimmed RNA FASTQ pair under --qc-output, for FastqToSam.
+Output: <output>/<group>/<individualID>/<individualID>_bqsr.bam, or
+        <individualID>_rg.bam when --known-sites is omitted, coordinate-sorted
+        and indexed for `rnaseqpipe variants`.
 """
 
 from tarva.gatk_common import PipelineSpec, add_preprocess_arguments, run_preprocess

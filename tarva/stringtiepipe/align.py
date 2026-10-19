@@ -13,14 +13,17 @@ aligned BAM and cannot run on FASTQ, so this pass exists only to feed it.
 The separate two-pass alignment for GATK variant calling is
 rnaseqpipe/align.py and is run later, after StringTie finishes.
 
-Input is the trimmed RNA tree under --qc-output (see metadata.py); output is
-<output>/<group>/<individualID>/, with STAR's Aligned.sortedByCoord.out.bam
-renamed to <individualID>_firstpass.bam so assemble.py has a predictable path.
-STAR's own logs (Log.final.out, SJ.out.tab) are left in place beside it.
-
 A per-sample failure is logged and the remaining samples continue, but the
 command exits non-zero if any sample failed, so a chained --hpc job using
-'dependency': 'afterok:<id>' won't proceed on partial results.
+'dependency': 'afterok:<id>' will not proceed on partial results.
+
+Input:  the trimmed RNA tree under --qc-output (see metadata.py), a STAR
+        index, and the annotation as a .gtf -- this step is the one that takes
+        the .gtf, where `assemble` and `novel-transcripts` need the .gff.
+Output: <output>/<group>/<individualID>/, with STAR's
+        Aligned.sortedByCoord.out.bam renamed to <individualID>_firstpass.bam
+        so assemble.py has a predictable path, STAR's own Log.final.out and
+        SJ.out.tab beside it, and a summary CSV.
 """
 
 import csv
@@ -95,13 +98,13 @@ def add_arguments(parser):
                         help="Submit as a SLURM job instead of running locally")
     parser.add_argument("--conda-env", default="bio_qc",
                         help="Conda environment activated in the generated SLURM script "
-                             "(default: bio_qc)")
+                             "(default: bio_qc -- runs the CLI itself and provides samtools)")
     parser.add_argument("--modules", default=DEFAULT_STAR_MODULE,
                         help=f"Comma-separated HPC modules to load (default: {DEFAULT_STAR_MODULE})")
     parser.add_argument("--directives-dict", dest="directives_dict",
                         type=parse_directives_dict, default={}, metavar="DICT",
                         help="SLURM sbatch directives as a Python dict literal, only used with "
-                             "--hpc. Example: \"{'partition': 'Mambaa', 'mem': '80gb', "
+                             "--hpc. Example: \"{'partition': 'Nebula', 'mem': '80gb', "
                              "'time': '24:00:00', 'cpus_per_task': 8}\"")
 
 
@@ -109,6 +112,11 @@ def rna_sjdb_overhang(qc_output):
     """
     STAR --sjdbOverhang, which the manual defines as max read length - 1.
 
+    Derived from `tarva qc`'s read_lengths.csv rather than hardcoded, since a
+    fixed value is only correct for the read length it was written against.
+    Note read_lengths.csv records the maximum over whatever --sample-size that
+    step scanned, so cross-check against fastqc_summary.csv's whole-file
+    `sequence_length` range if it looks short.
     """
     csv_path = Path(qc_output) / "read_lengths.csv"
     if not csv_path.is_file():
@@ -157,8 +165,11 @@ def _summary_row(sample, bam, sample_dir, status, error=""):
 def _align_one(sample, qc_output, output_dir, index_dir, gtf, sjdb_overhang,
                paired_tokens, threads, limit_bam_sort_ram, overwrite):
     """
-    First-pass alignment for a single individual.
+    One sample's first-pass alignment.
 
+    Everything is caught and turned into a FAILED row rather than raised: a
+    single bad sample shouldn't abort a pool that may have hours of work in
+    flight, which is what `check=True` did to the trim step.
     """
     sample_dir = Path(output_dir) / sample.group / sample.individual_id
     final_bam = sample_dir / f"{sample.individual_id}{FIRSTPASS_BAM_SUFFIX}"
@@ -212,7 +223,12 @@ def _align_one(sample, qc_output, output_dir, index_dir, gtf, sjdb_overhang,
 
 
 def run_alignment(args, meta, index_dir, gtf, sjdb_overhang):
-    """ 
+    """
+    Fan out across --jobs samples, writing the summary row by row.
+
+    The CSV is flushed per completed sample rather than written at the end, so
+    a wall-clock kill still leaves a record of what finished -- the gap that
+    left the timed-out trim run with no trimmomatic_summary.csv at all.
     """
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -249,8 +265,9 @@ def run_alignment(args, meta, index_dir, gtf, sjdb_overhang):
         pct = row["uniquely_mapped_pct"]
         if pct and float(pct) < args.min_unique_pct:
             print(f"WARNING: {row['individualID']} uniquely mapped {pct}%, below "
-                  f"--min-unique-pct {args.min_unique_pct}. Reads falling under threshold "
-                  f"are reported, not dropped. Remove them separately if needed.",
+                  f"--min-unique-pct {args.min_unique_pct}. The sample is reported "
+                  f"rather than dropped, so exclude it deliberately if that is what "
+                  f"you want.",
                   file=sys.stderr)
     if failed:
         raise SystemExit(
@@ -262,8 +279,8 @@ def run_alignment(args, meta, index_dir, gtf, sjdb_overhang):
 def _warn_memory(args):
     """
     NoSharedMemory means each concurrent STAR holds its own genome copy, so
-    memory scales with --jobs.
-
+    memory scales with --jobs -- unlike qc.py, where --jobs 2 was free. This is
+    why --jobs defaults to 1 here.
     """
     if args.jobs <= 1:
         return
