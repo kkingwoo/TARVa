@@ -281,7 +281,6 @@ To reduce the number of times large files are opened and parsed during data anal
 <b><a id="database-schema"></a></b>
 <summary><strong>TARVa Local DB ERD (click to expand)</strong></summary>                   
 <img src="tarva_localdb_erd.png" alt="TARVa local database ERD" width="900">                    
-cite source                
 </details>              
 
 <blank></blank>                       
